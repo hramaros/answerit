@@ -1,0 +1,19 @@
+{
+  "name": "answerit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "node --test \"src/**/*.test.js\""
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.3",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

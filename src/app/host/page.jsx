@@ -1,0 +1,201 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import QuestionBuilder from "@/components/QuestionBuilder";
+import { apiPost } from "@/lib/api";
+import { generateId } from "@/lib/code";
+import { DEFAULT_COLORS } from "@/lib/shapes";
+import { saveHostSession } from "@/lib/session";
+
+function newQuestion() {
+  return {
+    id: generateId("q"),
+    text: "",
+    type: "single",
+    basePoints: 1000,
+    answers: [0, 1].map((i) => ({
+      id: generateId("a"),
+      text: "",
+      color: DEFAULT_COLORS[i],
+      correct: false,
+    })),
+  };
+}
+
+export default function HostPage() {
+  const router = useRouter();
+  const [step, setStep] = useState("identity"); // identity | build
+  const [hostName, setHostName] = useState("");
+  const [title, setTitle] = useState("");
+  const [duration, setDuration] = useState(120);
+  const [code, setCode] = useState(null);
+  const [questions, setQuestions] = useState([]);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function createRoom(e) {
+    e.preventDefault();
+    if (!hostName.trim()) {
+      setError("Entrez votre nom de formateur.");
+      return;
+    }
+    setError("");
+    setBusy(true);
+    const { ok, data } = await apiPost("/api/host/create", {
+      hostName: hostName.trim(),
+    });
+    setBusy(false);
+    if (!ok) {
+      setError(data?.error || "Création impossible.");
+      return;
+    }
+    setCode(data.code);
+    saveHostSession({ code: data.code, hostName: data.hostName });
+    setQuestions([newQuestion()]);
+    setStep("build");
+  }
+
+  function updateQuestion(i, q) {
+    setQuestions((prev) => prev.map((item, idx) => (idx === i ? q : item)));
+  }
+  function removeQuestion(i) {
+    setQuestions((prev) => prev.filter((_, idx) => idx !== i));
+  }
+  function addQuestion() {
+    setQuestions((prev) => [...prev, newQuestion()]);
+  }
+
+  async function saveAndLaunch() {
+    setError("");
+    setBusy(true);
+    const quiz = {
+      title: title.trim() || "Quiz",
+      totalDurationSec: Number(duration),
+      questions,
+    };
+    const { ok, data } = await apiPost(`/api/host/${code}/quiz`, { quiz });
+    setBusy(false);
+    if (!ok) {
+      setError(data?.error || "Quiz invalide.");
+      return;
+    }
+    router.push(`/host/lobby?code=${code}`);
+  }
+
+  if (step === "identity") {
+    return (
+      <div className="center-screen">
+        <div className="container container--narrow stack gap-24">
+          <Link href="/" className="pill" style={{ alignSelf: "flex-start" }}>
+            ← Accueil
+          </Link>
+          <form className="card stack gap-16" onSubmit={createRoom}>
+            <span className="eyebrow">Espace formateur</span>
+            <h1 style={{ fontSize: "2rem" }}>Configurer un quiz</h1>
+            <div>
+              <label className="label" htmlFor="host">Votre nom</label>
+              <input
+                id="host"
+                className="input"
+                placeholder="ex. M. Rakoto"
+                value={hostName}
+                onChange={(e) => setHostName(e.target.value)}
+                maxLength={40}
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="title">Titre du quiz</label>
+              <input
+                id="title"
+                className="input"
+                placeholder="ex. Révision chapitre 3"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={120}
+              />
+            </div>
+            <div>
+              <label className="label" htmlFor="dur">
+                Temps total du quiz (secondes)
+              </label>
+              <input
+                id="dur"
+                type="number"
+                className="input"
+                min={10}
+                step={10}
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              />
+              <p className="tiny muted" style={{ marginTop: 6 }}>
+                Un seul chrono pour tout le quiz. Chacun répond à son rythme.
+              </p>
+            </div>
+            {error && <div className="error">{error}</div>}
+            <button
+              type="submit"
+              className="btn btn--primary btn--lg btn--block"
+              disabled={busy}
+            >
+              {busy ? "…" : "Créer la salle →"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container stack gap-24">
+      <div className="row row--between wrap gap-12">
+        <span className="brand">
+          <span className="brand__mark"><i /><i /><i /><i /></span>
+          answer<b>it</b>
+        </span>
+        <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
+          <span className="tiny muted">Code à partager</span>
+          <span className="code-chip">{code}</span>
+        </div>
+      </div>
+
+      <div className="stack gap-8">
+        <span className="eyebrow">Configuration · {questions.length} question
+          {questions.length > 1 ? "s" : ""}</span>
+        <h1 style={{ fontSize: "1.8rem" }}>{title || "Quiz"}</h1>
+        <p className="muted">
+          Ajoutez vos questions et réponses, choisissez le type et les couleurs.
+        </p>
+      </div>
+
+      <div className="stack gap-16">
+        {questions.map((q, i) => (
+          <QuestionBuilder
+            key={q.id}
+            question={q}
+            index={i}
+            onChange={(nq) => updateQuestion(i, nq)}
+            onRemove={() => removeQuestion(i)}
+            canRemove={questions.length > 1}
+          />
+        ))}
+      </div>
+
+      <button type="button" className="btn btn--ghost btn--block" onClick={addQuestion}>
+        + Ajouter une question
+      </button>
+
+      {error && <div className="error">{error}</div>}
+
+      <button
+        type="button"
+        className="btn btn--primary btn--lg btn--block"
+        onClick={saveAndLaunch}
+        disabled={busy}
+      >
+        {busy ? "Enregistrement…" : "Enregistrer et aller au lancement →"}
+      </button>
+    </div>
+  );
+}
