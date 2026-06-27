@@ -38,7 +38,7 @@ export default function HomePage() {
             <span className="brand__mark">
               <i /><i /><i /><i />
             </span>
-            answer<b>it</b>
+            valio<b>.fanontaniana</b>
           </span>
           <Link href="/host" className="pill">
             Espace formateur

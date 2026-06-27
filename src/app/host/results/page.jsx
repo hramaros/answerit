@@ -9,6 +9,12 @@ import { apiGet } from "@/lib/api";
 import { normalizeCode } from "@/lib/code";
 import { usePolling } from "@/lib/usePolling";
 
+// Chargé à la demande (jsPDF est lourd) : on n'alourdit pas le bundle de la page.
+async function exportPdf(board) {
+  const { downloadHostResultsPdf } = await import("@/lib/pdf");
+  downloadHostResultsPdf(board);
+}
+
 function HostResultsInner() {
   const params = useSearchParams();
   const code = normalizeCode(params.get("code") || "");
@@ -39,7 +45,7 @@ function HostResultsInner() {
       <div className="row row--between wrap gap-12">
         <Link href="/" className="brand">
           <span className="brand__mark"><i /><i /><i /><i /></span>
-          answer<b>it</b>
+          valio<b>.fanontaniana</b>
         </Link>
         <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
           <span className="tiny muted">Code</span>
@@ -80,9 +86,17 @@ function HostResultsInner() {
       </div>
 
       {ended && (
-        <Link href="/host" className="btn btn--ghost btn--block">
-          Créer un nouveau quiz
-        </Link>
+        <div className="stack gap-12">
+          <button
+            className="btn btn--primary btn--lg btn--block"
+            onClick={() => exportPdf(board)}
+          >
+            ⬇ Télécharger le classement (PDF)
+          </button>
+          <Link href="/host" className="btn btn--ghost btn--block">
+            Créer un nouveau quiz
+          </Link>
+        </div>
       )}
     </div>
   );

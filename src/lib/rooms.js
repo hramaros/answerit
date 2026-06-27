@@ -278,6 +278,8 @@ export async function getLeaderboard(code) {
   }));
   return {
     status: deriveStatus(meta),
+    code: meta.code,
+    title: meta.quiz?.title || "Quiz",
     leaderboard: withNote,
     podium: getPodium(withNote),
     nbQuestions,

@@ -45,7 +45,7 @@ function LobbyInner() {
       <div className="row row--between wrap gap-12">
         <Link href="/" className="brand">
           <span className="brand__mark"><i /><i /><i /><i /></span>
-          answer<b>it</b>
+          valio<b>.fanontaniana</b>
         </Link>
         <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
           <span className="tiny muted">Code</span>
@@ -56,7 +56,7 @@ function LobbyInner() {
       <div className="card stack gap-16" style={{ textAlign: "center" }}>
         <span className="eyebrow">Salle d'attente</span>
         <h1 style={{ fontSize: "2.6rem" }}>
-          Rejoignez avec le code <span style={{ color: "var(--violet-bright)" }}>{code}</span>
+          Rejoignez avec le code <span style={{ color: "var(--accent-bright)" }}>{code}</span>
         </h1>
         <p className="muted">
           Les participants apparaissent ci-dessous. Lancez quand tout le monde

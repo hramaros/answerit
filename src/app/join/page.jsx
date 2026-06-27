@@ -136,7 +136,7 @@ function JoinInner() {
                 <span
                   key={p.playerId}
                   className="player-chip"
-                  style={p.playerId === playerId ? { borderColor: "var(--violet)" } : undefined}
+                  style={p.playerId === playerId ? { borderColor: "var(--accent)" } : undefined}
                 >
                   <span className="player-chip__dot" />
                   {p.pseudo}

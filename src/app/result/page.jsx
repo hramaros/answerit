@@ -8,6 +8,12 @@ import { normalizeCode } from "@/lib/code";
 import { usePolling } from "@/lib/usePolling";
 import { getPlayerSession } from "@/lib/session";
 
+// Chargé à la demande (jsPDF est lourd) : on n'alourdit pas le bundle de la page.
+async function exportPdf(board, me) {
+  const { downloadParticipantPdf } = await import("@/lib/pdf");
+  downloadParticipantPdf(board, me);
+}
+
 function ResultInner() {
   const params = useSearchParams();
   const code = normalizeCode(params.get("code") || "");
@@ -87,6 +93,15 @@ function ResultInner() {
         <span className="eyebrow">Podium</span>
         <Podium podium={board.podium} />
       </div>
+
+      {me && (
+        <button
+          className="btn btn--primary btn--lg btn--block"
+          onClick={() => exportPdf(board, me)}
+        >
+          ⬇ Télécharger mon résultat (PDF)
+        </button>
+      )}
 
       <Link href="/" className="btn btn--ghost btn--block">
         Retour à l'accueil

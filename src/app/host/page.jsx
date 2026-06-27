@@ -152,7 +152,7 @@ export default function HostPage() {
       <div className="row row--between wrap gap-12">
         <span className="brand">
           <span className="brand__mark"><i /><i /><i /><i /></span>
-          answer<b>it</b>
+          valio<b>.fanontaniana</b>
         </span>
         <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
           <span className="tiny muted">Code à partager</span>

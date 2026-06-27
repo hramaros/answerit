@@ -13,13 +13,13 @@ const body = Inter({
 });
 
 export const metadata = {
-  title: "answerit — quiz en direct",
+  title: "valio.fanontaniana — quiz en direct",
   description:
     "Lancez des quiz en direct : un code, un pseudo, et c'est parti. Sans inscription.",
 };
 
 export const viewport = {
-  themeColor: "#15122b",
+  themeColor: "#0f1a14",
   width: "device-width",
   initialScale: 1,
 };

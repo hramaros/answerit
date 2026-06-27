@@ -1,4 +1,4 @@
-# answerit — quiz en direct (style Kahoot)
+# valio.fanontaniana — quiz en direct (style Kahoot)
 
 Application web permettant à un formateur de lancer des quiz en direct. Les
 participants rejoignent une salle avec un **code**, choisissent un **pseudo**,

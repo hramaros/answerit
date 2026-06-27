@@ -18,3 +18,4 @@
 
 # vercel
 .vercel
+.env*
