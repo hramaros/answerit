@@ -76,7 +76,10 @@ export default function HostHistoryPage() {
         <div className="spin" style={{ margin: "0 auto" }} />
       ) : records.length === 0 ? (
         <div className="panel" style={{ textAlign: "center" }}>
-          <p className="muted">Aucun examen enregistré pour l'instant.</p>
+          <p className="muted">
+            Vos examens pro apparaîtront ici — classement, notes /20 et export PDF —
+            dès que vous en lancez un.
+          </p>
         </div>
       ) : (
         <div className="stack gap-8">

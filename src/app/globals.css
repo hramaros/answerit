@@ -10,7 +10,7 @@
   /* — Texte — */
   --text: #eafff3;
   --muted: #9fc7b0;
-  --muted-2: #6f927e;
+  --muted-2: #8aa99a; /* relevé pour passer AA (≥4.5:1) sur les surfaces et placeholders */
 
   /* — Marque (accents vert clair) — */
   --accent: #34d399;
@@ -482,6 +482,7 @@ button {
   place-items: center;
   padding: 20px;
   z-index: 50;
+  animation: backdrop-in 160ms ease-out;
 }
 .modal {
   width: 100%;
@@ -491,6 +492,19 @@ button {
   border-radius: var(--radius);
   padding: 22px;
   box-shadow: var(--shadow-lift);
+  animation: modal-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal { animation: none; }
 }
 
 /* ---------- Carnet de notes ---------- */

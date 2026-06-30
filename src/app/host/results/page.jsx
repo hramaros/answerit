@@ -6,6 +6,7 @@ import Countdown from "@/components/Countdown";
 import Leaderboard from "@/components/Leaderboard";
 import Podium from "@/components/Podium";
 import ReviewGrader from "@/components/ReviewGrader";
+import ConfirmButton from "@/components/ConfirmButton";
 import { apiGet, apiPost } from "@/lib/api";
 import { normalizeCode } from "@/lib/code";
 import { usePolling } from "@/lib/usePolling";
@@ -124,13 +125,14 @@ function HostResultsInner() {
         )}
 
         <div className="stack gap-8">
-          <button
+          <ConfirmButton
             className="btn btn--primary btn--lg btn--block"
-            onClick={finalize}
+            confirmLabel="Publier définitivement ?"
             disabled={finalizing}
+            onConfirm={finalize}
           >
             {finalizing ? "Finalisation…" : "Finaliser et publier le classement"}
-          </button>
+          </ConfirmButton>
           <p className="tiny muted" style={{ textAlign: "center" }}>
             {pending > 0
               ? `${pending} réponse${pending > 1 ? "s" : ""} non validée${
@@ -175,9 +177,13 @@ function HostResultsInner() {
               durationMs={state.durationMs}
               serverOffset={offset}
             />
-            <button className="btn btn--ghost" onClick={endExam}>
+            <ConfirmButton
+              className="btn btn--ghost"
+              confirmLabel="Terminer maintenant ?"
+              onConfirm={endExam}
+            >
               Terminer l'examen
-            </button>
+            </ConfirmButton>
           </div>
         </div>
       )}

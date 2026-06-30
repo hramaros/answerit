@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import { useAccount } from "@/lib/account-client";
+import ConfirmButton from "@/components/ConfirmButton";
 
 export default function HostClassesPage() {
   const { account, loading } = useAccount();
@@ -120,7 +121,10 @@ export default function HostClassesPage() {
         <div className="spin" style={{ margin: "0 auto" }} />
       ) : classes.length === 0 ? (
         <div className="panel" style={{ textAlign: "center" }}>
-          <p className="muted">Aucune classe pour l'instant.</p>
+          <p className="muted">
+            Créez votre première classe pour suivre les notes de vos élèves au fil
+            des examens.
+          </p>
         </div>
       ) : (
         <div className="stack gap-8">
@@ -141,14 +145,14 @@ export default function HostClassesPage() {
                 >
                   Gérer
                 </button>
-                <button
-                  type="button"
+                <ConfirmButton
                   className="btn btn--danger"
                   style={{ padding: "8px 12px" }}
-                  onClick={() => deleteCls(c.id)}
+                  confirmLabel="Confirmer ?"
+                  onConfirm={() => deleteCls(c.id)}
                 >
                   Supprimer
-                </button>
+                </ConfirmButton>
               </div>
             </div>
           ))}
