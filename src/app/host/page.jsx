@@ -122,6 +122,23 @@ export default function HostPage() {
               </span>
             )}
           </div>
+          {account && account.balanceAr === 0 && (
+            <div className="card stack gap-8">
+              <span className="eyebrow">Premiers pas · mode Examen</span>
+              <ol className="muted" style={{ margin: 0, paddingLeft: 20, lineHeight: 1.7 }}>
+                <li>Construisez votre quiz (réponse libre disponible en mode Examen).</li>
+                <li>Au lancement, rechargez votre solde (actuellement 0 Ar).</li>
+                <li>Lancez, corrigez, publiez — notes et historique sauvegardés.</li>
+              </ol>
+              <Link
+                href="/host/classes"
+                className="tiny"
+                style={{ color: "var(--accent-bright)" }}
+              >
+                Astuce : créez une classe pour des examens nominatifs + un carnet de notes →
+              </Link>
+            </div>
+          )}
           <form className="card stack gap-16" onSubmit={createRoom}>
             <span className="eyebrow">Espace formateur</span>
             <h1 style={{ fontSize: "2rem" }}>Configurer un quiz</h1>
@@ -147,6 +164,18 @@ export default function HostPage() {
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={120}
               />
+            </div>
+            <div
+              style={{
+                borderTop: "1px solid var(--line)",
+                paddingTop: 14,
+                marginTop: 2,
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                color: "var(--muted)",
+              }}
+            >
+              Configuration de la session
             </div>
             <div>
               <label className="label" htmlFor="dur">
