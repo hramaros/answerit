@@ -7,6 +7,8 @@ import { apiPost } from "@/lib/api";
 import { generateId } from "@/lib/code";
 import { DEFAULT_COLORS } from "@/lib/shapes";
 import { saveHostSession } from "@/lib/session";
+import { useAccount } from "@/lib/account-client";
+import AuthModal from "@/components/AuthModal";
 
 function newQuestion() {
   return {
@@ -35,6 +37,14 @@ export default function HostPage() {
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const { account, setAccount } = useAccount();
+  const [showAuth, setShowAuth] = useState(false);
+
+  // Le mode Examen exige un compte : sinon on ouvre la modale de connexion.
+  function chooseExamen() {
+    if (account) setMode("examen");
+    else setShowAuth(true);
+  }
 
   async function createRoom(e) {
     e.preventDefault();
@@ -150,7 +160,7 @@ export default function HostPage() {
                 <button
                   type="button"
                   aria-pressed={mode === "examen"}
-                  onClick={() => setMode("examen")}
+                  onClick={chooseExamen}
                 >
                   Examen
                 </button>
@@ -181,6 +191,11 @@ export default function HostPage() {
                     Débloque la réponse libre et l'export. Débité en fin de session
                     (paiement à venir).
                   </p>
+                  {account && (
+                    <p className="tiny muted">
+                      Connecté : {account.email} · Solde : {account.balanceAr} Ar
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -194,6 +209,16 @@ export default function HostPage() {
             </button>
           </form>
         </div>
+        {showAuth && (
+          <AuthModal
+            onClose={() => setShowAuth(false)}
+            onAuthed={(acc) => {
+              setAccount(acc);
+              setShowAuth(false);
+              setMode("examen");
+            }}
+          />
+        )}
       </div>
     );
   }

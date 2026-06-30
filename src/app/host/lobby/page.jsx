@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiGet, apiPost } from "@/lib/api";
 import { normalizeCode } from "@/lib/code";
 import { usePolling } from "@/lib/usePolling";
+import RechargeModal from "@/components/RechargeModal";
 
 function LobbyInner() {
   const router = useRouter();
@@ -12,6 +13,7 @@ function LobbyInner() {
   const code = normalizeCode(params.get("code") || "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recharge, setRecharge] = useState(null); // { priceAr, balanceAr } | null
 
   const fetcher = useMemo(
     () => async () => (await apiGet(`/api/room/${code}/state`)).data,
@@ -32,9 +34,13 @@ function LobbyInner() {
   async function launch() {
     setError("");
     setBusy(true);
-    const { ok, data } = await apiPost(`/api/host/${code}/start`);
+    const { ok, status, data } = await apiPost(`/api/host/${code}/start`);
     setBusy(false);
     if (!ok) {
+      if (status === 402) {
+        setRecharge({ priceAr: data?.priceAr || 0, balanceAr: data?.balanceAr || 0 });
+        return;
+      }
       setError(data?.error || "Lancement impossible.");
       return;
     }
@@ -102,6 +108,20 @@ function LobbyInner() {
             ? "En attente de participants"
             : "🚀 Lancer le quiz"}
       </button>
+
+      {recharge && (
+        <RechargeModal
+          priceAr={recharge.priceAr}
+          balanceAr={recharge.balanceAr}
+          busyRetry={busy}
+          onRecharged={(bal) => setRecharge((r) => ({ ...r, balanceAr: bal }))}
+          onRetry={() => {
+            setRecharge(null);
+            launch();
+          }}
+          onClose={() => setRecharge(null)}
+        />
+      )}
     </div>
   );
 }

@@ -472,6 +472,26 @@ button {
   min-width: 180px;
   word-break: break-word;
 }
+
+/* ---------- Modales (auth, recharge) ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  z-index: 50;
+}
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 22px;
+  box-shadow: var(--shadow-lift);
+}
 .seg {
   display: inline-flex;
   background: var(--ink);
