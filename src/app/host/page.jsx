@@ -106,6 +106,7 @@ export default function HostPage() {
             {account && (
               <span className="row gap-8">
                 <Link href="/host/dashboard" className="pill">Tableau de bord</Link>
+                <Link href="/host/classes" className="pill">Classes</Link>
                 <Link href="/host/history" className="pill">Mes examens</Link>
               </span>
             )}
