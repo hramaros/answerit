@@ -90,14 +90,19 @@ export async function deleteSession(token) {
   await redis.del(sessionKey(token));
 }
 
-/** Recharge de test (stub paiement) : crédite immédiatement le solde. */
-export async function topupTest(accountId, amountAr) {
+/** Crédite le solde d'un compte (primitive utilisée par la couche paiement). */
+export async function credit(accountId, amountAr) {
   const redis = getRedis();
   const account = await redis.get(accountKey(accountId));
   if (!account) return { ok: false, status: 404, error: "Compte introuvable." };
   account.balanceAr = (Number(account.balanceAr) || 0) + (Number(amountAr) || 0);
   await redis.set(accountKey(accountId), account);
   return { ok: true, balanceAr: account.balanceAr };
+}
+
+/** Recharge de test : alias de credit (conservé pour les tests / le stub). */
+export async function topupTest(accountId, amountAr) {
+  return credit(accountId, amountAr);
 }
 
 /** Débite le solde (refuse si insuffisant). */
