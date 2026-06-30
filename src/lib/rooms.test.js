@@ -18,6 +18,7 @@ import {
   getReviewData,
   endSession,
 } from "./rooms.js";
+import { createAccount, topupTest, getAccountById } from "./accounts.js";
 
 // Faux Redis en mémoire qui clone les valeurs (mime la (dé)sérialisation Upstash
 // et attrape ainsi les bugs de mutation par référence).
@@ -437,4 +438,45 @@ test("getLeaderboard : prix exposé + settlement à la clôture (Examen)", async
 
   const full = await getMeta(meta.code);
   assert.equal(full.settled.amountAr, 1000);
+});
+
+test("Examen + compte : lancement bloqué sans solde, ok après recharge, débit à la clôture", async () => {
+  setRedisClient(createFakeRedis());
+  const { account } = await createAccount({ email: "p@e.mg", password: "secret1" });
+  const meta = await createRoom("Prof", account.id);
+  await setQuiz(meta.code, {
+    title: "Exam",
+    mode: "examen",
+    capacity: "small",
+    totalDurationSec: 600,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+  await registerPlayer(meta.code, "Alice");
+
+  // Solde 0 → lancement refusé (402)
+  const blocked = await startGame(meta.code);
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.status, 402);
+  assert.equal(blocked.priceAr, 1000);
+
+  // Recharge → lancement OK
+  await topupTest(account.id, 5000);
+  assert.equal((await startGame(meta.code)).ok, true);
+
+  // Clôture → débit réel de 1000 Ar
+  await endSession(meta.code);
+  const board = await getLeaderboard(meta.code);
+  assert.equal(board.status, "ended");
+  assert.equal(board.settled.charged, true);
+  assert.equal((await getAccountById(account.id)).balanceAr, 4000);
 });

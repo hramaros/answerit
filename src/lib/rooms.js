@@ -14,6 +14,8 @@ import {
   maxParticipants,
   examPriceAr,
 } from "./exam.js";
+import { getAccountById, debit } from "./accounts.js";
+import { canAfford } from "./wallet.js";
 
 // Durée de vie d'une salle dans Redis (auto-suppression = côté « éphémère »).
 const ROOM_TTL_SEC = 2 * 60 * 60; // 2h
@@ -57,7 +59,7 @@ export function deriveStatus(meta, ts = now()) {
 /* Salle / meta                                                        */
 /* ------------------------------------------------------------------ */
 
-export async function createRoom(hostName) {
+export async function createRoom(hostName, hostAccountId = null) {
   const redis = getRedis();
   let code;
   // Évite les collisions de code (rare, mais on vérifie).
@@ -69,6 +71,7 @@ export async function createRoom(hostName) {
   const meta = {
     code,
     hostName: String(hostName || "").slice(0, 40) || "Formateur",
+    hostAccountId: hostAccountId || null,
     status: "lobby",
     quiz: null,
     startedAt: null,
@@ -180,6 +183,21 @@ export async function startGame(code) {
   if (!meta.quiz) return { ok: false, error: "Aucun quiz configuré." };
   if (deriveStatus(meta) !== "lobby")
     return { ok: false, error: "La partie a déjà démarré." };
+
+  // Examen : exiger un solde suffisant au lancement (débit réel en fin de session).
+  if (meta.quiz.mode === "examen" && meta.hostAccountId) {
+    const account = await getAccountById(meta.hostAccountId);
+    const priceAr = examPriceAr(meta.quiz.mode, meta.quiz.capacity);
+    if (!account || !canAfford(account.balanceAr, priceAr))
+      return {
+        ok: false,
+        status: 402,
+        error: "Solde insuffisant pour lancer cet examen.",
+        priceAr,
+        balanceAr: account?.balanceAr || 0,
+      };
+  }
+
   meta.status = "running";
   meta.startedAt = now();
   meta.durationMs = meta.quiz.totalDurationSec * 1000;
@@ -467,7 +485,12 @@ export async function getLeaderboard(code) {
   // Stub de débit : à la clôture d'un Examen, on enregistre l'intention
   // (le débit réel arrive avec le wallet/compte ; `charged` reste false).
   if (status === "ended" && mode === "examen" && !meta.settled) {
-    meta.settled = { amountAr: priceAr, currency: "MGA", at: now(), charged: false };
+    let charged = false;
+    if (meta.hostAccountId) {
+      const d = await debit(meta.hostAccountId, priceAr);
+      charged = d.ok;
+    }
+    meta.settled = { amountAr: priceAr, currency: "MGA", at: now(), charged };
     await saveMeta(meta);
   }
 
