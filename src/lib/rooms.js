@@ -8,6 +8,12 @@ import {
   getPodium,
   refMsForQuiz,
 } from "./scoring.js";
+import {
+  normalizeMode,
+  normalizeCapacity,
+  maxParticipants,
+  examPriceAr,
+} from "./exam.js";
 
 // Durée de vie d'une salle dans Redis (auto-suppression = côté « éphémère »).
 const ROOM_TTL_SEC = 2 * 60 * 60; // 2h
@@ -39,7 +45,9 @@ export function deriveStatus(meta, ts = now()) {
   if (!meta) return null;
   if (meta.finalizedAt) return "ended";
   if (meta.status === "running" && meta.startedAt) {
-    if (ts <= meta.startedAt + meta.durationMs) return "running";
+    const chronoEnd = meta.startedAt + meta.durationMs;
+    const endedByHost = meta.endedAt && ts >= meta.endedAt;
+    if (!endedByHost && ts <= chronoEnd) return "running";
     return quizHasFree(meta.quiz) ? "review" : "ended";
   }
   return meta.status;
@@ -66,6 +74,8 @@ export async function createRoom(hostName) {
     startedAt: null,
     durationMs: 0,
     finalizedAt: null,
+    endedAt: null,
+    settled: null,
     createdAt: now(),
   };
   await redis.set(metaKey(code), meta, { ex: ROOM_TTL_SEC });
@@ -92,8 +102,15 @@ export function validateQuiz(quiz) {
   for (const [i, q] of quiz.questions.entries()) {
     if (!q.text || !String(q.text).trim())
       return { ok: false, error: `Question ${i + 1} : texte manquant.` };
-    // Réponse libre : pas de réponses prédéfinies, validation manuelle par le formateur.
-    if (q.type === "free") continue;
+    // Réponse libre : réservée au mode Examen ; pas de réponses prédéfinies.
+    if (q.type === "free") {
+      if (normalizeMode(quiz.mode) !== "examen")
+        return {
+          ok: false,
+          error: `Question ${i + 1} : la réponse libre nécessite le mode Examen.`,
+        };
+      continue;
+    }
     if (!Array.isArray(q.answers) || q.answers.length < 2)
       return { ok: false, error: `Question ${i + 1} : au moins deux réponses.` };
     const nbCorrect = q.answers.filter((a) => a.correct).length;
@@ -116,6 +133,8 @@ export function validateQuiz(quiz) {
 function sanitizeQuiz(quiz) {
   return {
     title: String(quiz.title || "Quiz").slice(0, 120),
+    mode: normalizeMode(quiz.mode),
+    capacity: normalizeCapacity(quiz.capacity),
     totalDurationSec: Math.max(1, Math.round(Number(quiz.totalDurationSec) || 0)),
     questions: quiz.questions.map((q) => {
       const type =
@@ -168,6 +187,19 @@ export async function startGame(code) {
   return { ok: true, startedAt: meta.startedAt, durationMs: meta.durationMs };
 }
 
+/** Fin de session manuelle par le formateur (« Terminer l'examen »). */
+export async function endSession(code) {
+  const meta = await getMeta(code);
+  if (!meta) return { ok: false, status: 404, error: "Salle introuvable." };
+  if (meta.status !== "running" || !meta.startedAt)
+    return { ok: false, status: 409, error: "Aucune session en cours." };
+  if (!meta.endedAt) {
+    meta.endedAt = now();
+    await saveMeta(meta);
+  }
+  return { ok: true, endedAt: meta.endedAt };
+}
+
 /* ------------------------------------------------------------------ */
 /* Joueurs                                                             */
 /* ------------------------------------------------------------------ */
@@ -188,6 +220,17 @@ export async function registerPlayer(code, pseudo) {
     return { ok: false, status: 409, error: "Les inscriptions sont closes." };
   const clean = String(pseudo || "").trim().slice(0, 30);
   if (!clean) return { ok: false, status: 400, error: "Pseudo requis." };
+
+  const cap = maxParticipants(meta.quiz?.mode, meta.quiz?.capacity);
+  if (cap !== null) {
+    const current = (await redis.smembers(playerIdsKey(code))).length;
+    if (current >= cap)
+      return {
+        ok: false,
+        status: 409,
+        error: `Salle pleine (max ${cap} participants).`,
+      };
+  }
 
   const id = generateId("p");
   const player = { id, pseudo: clean, score: 0, answered: {}, shownAt: {} };
@@ -415,10 +458,27 @@ export async function getLeaderboard(code) {
     ...p,
     note: computeNote(p.nbCorrect, nbQuestions),
   }));
+
+  const status = deriveStatus(meta);
+  const mode = meta.quiz?.mode || "libre";
+  const capacity = meta.quiz?.capacity || "small";
+  const priceAr = examPriceAr(mode, capacity);
+
+  // Stub de débit : à la clôture d'un Examen, on enregistre l'intention
+  // (le débit réel arrive avec le wallet/compte ; `charged` reste false).
+  if (status === "ended" && mode === "examen" && !meta.settled) {
+    meta.settled = { amountAr: priceAr, currency: "MGA", at: now(), charged: false };
+    await saveMeta(meta);
+  }
+
   return {
-    status: deriveStatus(meta),
+    status,
     code: meta.code,
     title: meta.quiz?.title || "Quiz",
+    mode,
+    capacity,
+    priceAr,
+    settled: meta.settled || null,
     leaderboard: withNote,
     podium: getPodium(withNote),
     nbQuestions,

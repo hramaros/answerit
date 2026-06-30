@@ -56,6 +56,10 @@ function HostResultsInner() {
     setFinalizing(false);
   }
 
+  async function endExam() {
+    await apiPost(`/api/host/${code}/end`, {});
+  }
+
   const mergedReview = useMemo(() => {
     if (!reviewData) return null;
     return {
@@ -165,11 +169,16 @@ function HostResultsInner() {
             </h1>
             <p className="muted tiny">Le classement se fige à la fin du chrono.</p>
           </div>
-          <Countdown
-            endsAt={endsAt}
-            durationMs={state.durationMs}
-            serverOffset={offset}
-          />
+          <div className="stack gap-8" style={{ alignItems: "flex-end" }}>
+            <Countdown
+              endsAt={endsAt}
+              durationMs={state.durationMs}
+              serverOffset={offset}
+            />
+            <button className="btn btn--ghost" onClick={endExam}>
+              Terminer l'examen
+            </button>
+          </div>
         </div>
       )}
 
@@ -181,6 +190,18 @@ function HostResultsInner() {
         </span>
         <Leaderboard players={board.leaderboard} />
       </div>
+
+      {ended && state.mode === "examen" && (
+        <div className="panel" style={{ textAlign: "center" }}>
+          <span className="tiny muted">Coût de cet examen</span>
+          <div style={{ fontSize: "1.4rem", fontWeight: 800 }}>
+            {board.priceAr} Ar
+          </div>
+          <span className="tiny muted">
+            Débit en fin de session — paiement à venir (non débité)
+          </span>
+        </div>
+      )}
 
       {ended && (
         <div className="stack gap-12">

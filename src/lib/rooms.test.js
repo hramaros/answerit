@@ -16,6 +16,7 @@ import {
   gradeFreeAnswer,
   finalizeSession,
   getReviewData,
+  endSession,
 } from "./rooms.js";
 
 // Faux Redis en mémoire qui clone les valeurs (mime la (dé)sérialisation Upstash
@@ -191,6 +192,7 @@ test("validateQuiz accepte une question à réponse libre (sans réponses préd�
   const meta = await createRoom("Prof");
   const res = await setQuiz(meta.code, {
     title: "Ouvert",
+    mode: "examen",
     totalDurationSec: 30,
     questions: [{ text: "Expliquez X", type: "free", basePoints: 500 }],
   });
@@ -204,6 +206,7 @@ test("réponses libres : soumission → review → validation → finalisation",
 
   const quizRes = await setQuiz(code, {
     title: "Capitales (ouvert)",
+    mode: "examen",
     totalDurationSec: 60,
     questions: [
       {
@@ -290,4 +293,148 @@ test("deriveStatus : sans réponse libre, le chrono écoulé clôt directement",
   await startGame(meta.code);
   const m = await getMeta(meta.code);
   assert.equal(deriveStatus(m, m.startedAt + m.durationMs + 1), "ended");
+});
+
+test("setQuiz refuse une réponse libre en mode Libre", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  const res = await setQuiz(meta.code, {
+    title: "X",
+    mode: "libre",
+    totalDurationSec: 30,
+    questions: [{ text: "Ouvrez", type: "free", basePoints: 500 }],
+  });
+  assert.equal(res.ok, false);
+  assert.match(res.error, /mode Examen/i);
+});
+
+test("setQuiz : mode/capacity normalisés et persistés", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  const res = await setQuiz(meta.code, {
+    title: "Exam",
+    mode: "examen",
+    capacity: "unlimited",
+    totalDurationSec: 60,
+    questions: [{ text: "Ouvrez", type: "free", basePoints: 500 }],
+  });
+  assert.equal(res.ok, true);
+  const full = await getMeta(meta.code);
+  assert.equal(full.quiz.mode, "examen");
+  assert.equal(full.quiz.capacity, "unlimited");
+  assert.equal(full.endedAt, null);
+  assert.equal(full.settled, null);
+});
+
+test("registerPlayer : mode Libre plafonné à 10", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  await setQuiz(meta.code, {
+    title: "Libre",
+    mode: "libre",
+    totalDurationSec: 60,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+  for (let i = 0; i < 10; i++) {
+    const r = await registerPlayer(meta.code, `J${i}`);
+    assert.equal(r.ok, true, `inscription ${i} acceptée`);
+  }
+  const over = await registerPlayer(meta.code, "Onzième");
+  assert.equal(over.ok, false);
+  assert.equal(over.status, 409);
+  assert.match(over.error, /pleine/i);
+});
+
+test("registerPlayer : Examen illimité n'a pas de plafond", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  await setQuiz(meta.code, {
+    title: "Exam",
+    mode: "examen",
+    capacity: "unlimited",
+    totalDurationSec: 60,
+    questions: [{ text: "Ouvrez", type: "free", basePoints: 500 }],
+  });
+  for (let i = 0; i < 25; i++) {
+    const r = await registerPlayer(meta.code, `J${i}`);
+    assert.equal(r.ok, true);
+  }
+});
+
+test("endSession : clôture immédiate avant la fin du chrono", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  await setQuiz(meta.code, {
+    title: "Exam",
+    mode: "examen",
+    capacity: "small",
+    totalDurationSec: 600,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+  await registerPlayer(meta.code, "Alice");
+  await startGame(meta.code);
+  assert.equal(deriveStatus(await getMeta(meta.code)), "running");
+
+  const end = await endSession(meta.code);
+  assert.equal(end.ok, true);
+  assert.ok(end.endedAt > 0);
+  assert.equal(deriveStatus(await getMeta(meta.code)), "ended");
+});
+
+test("getLeaderboard : prix exposé + settlement à la clôture (Examen)", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  await setQuiz(meta.code, {
+    title: "Exam",
+    mode: "examen",
+    capacity: "small",
+    totalDurationSec: 600,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+  await registerPlayer(meta.code, "Alice");
+  await startGame(meta.code);
+
+  let board = await getLeaderboard(meta.code);
+  assert.equal(board.priceAr, 1000);
+  assert.equal(board.settled, null);
+
+  await endSession(meta.code);
+  board = await getLeaderboard(meta.code);
+  assert.equal(board.status, "ended");
+  assert.ok(board.settled);
+  assert.equal(board.settled.amountAr, 1000);
+  assert.equal(board.settled.charged, false);
+
+  const full = await getMeta(meta.code);
+  assert.equal(full.settled.amountAr, 1000);
 });

@@ -5,6 +5,7 @@ import { DEFAULT_COLORS } from "@/lib/shapes";
 export default function QuestionBuilder({
   question,
   index,
+  mode = "libre",
   onChange,
   onRemove,
   canRemove,
@@ -82,13 +83,15 @@ export default function QuestionBuilder({
           >
             Choix multiple
           </button>
-          <button
-            type="button"
-            aria-pressed={question.type === "free"}
-            onClick={() => setType("free")}
-          >
-            Réponse libre
-          </button>
+          {mode === "examen" && (
+            <button
+              type="button"
+              aria-pressed={question.type === "free"}
+              onClick={() => setType("free")}
+            >
+              Réponse libre
+            </button>
+          )}
         </div>
         <div className="spacer" />
         {canRemove && (

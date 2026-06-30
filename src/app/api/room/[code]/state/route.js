@@ -18,6 +18,8 @@ export const GET = handler(async (_request, { params }) => {
     title: meta.quiz?.title || null,
     hasQuiz: !!meta.quiz,
     nbQuestions: meta.quiz?.questions.length || 0,
+    mode: meta.quiz?.mode || null,
+    capacity: meta.quiz?.capacity || null,
     participants,
     startedAt: meta.startedAt,
     durationMs: meta.durationMs,
