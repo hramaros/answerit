@@ -16,6 +16,7 @@ import {
 } from "./exam.js";
 import { getAccountById, debit } from "./accounts.js";
 import { canAfford } from "./wallet.js";
+import { saveExamRecord } from "./history.js";
 
 // Durée de vie d'une salle dans Redis (auto-suppression = côté « éphémère »).
 const ROOM_TTL_SEC = 2 * 60 * 60; // 2h
@@ -489,6 +490,22 @@ export async function getLeaderboard(code) {
     if (meta.hostAccountId) {
       const d = await debit(meta.hostAccountId, priceAr);
       charged = d.ok;
+      // Snapshot durable dans l'historique du compte (hors TTL).
+      await saveExamRecord({
+        id: generateId("ex"),
+        accountId: meta.hostAccountId,
+        code: meta.code,
+        title: meta.quiz?.title || "Quiz",
+        mode,
+        capacity,
+        priceAr,
+        charged,
+        nbQuestions,
+        participantCount: withNote.length,
+        endedAt: now(),
+        leaderboard: withNote,
+        podium: getPodium(withNote),
+      });
     }
     meta.settled = { amountAr: priceAr, currency: "MGA", at: now(), charged };
     await saveMeta(meta);

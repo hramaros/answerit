@@ -19,12 +19,14 @@ import {
   endSession,
 } from "./rooms.js";
 import { createAccount, topupTest, getAccountById } from "./accounts.js";
+import { listExamRecords, getExamRecord } from "./history.js";
 
 // Faux Redis en mémoire qui clone les valeurs (mime la (dé)sérialisation Upstash
 // et attrape ainsi les bugs de mutation par référence).
 function createFakeRedis() {
   const store = new Map();
   const sets = new Map();
+  const lists = new Map();
   const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)));
   return {
     async set(key, value) {
@@ -51,6 +53,23 @@ function createFakeRedis() {
     },
     async expire() {
       return 1;
+    },
+    async lpush(key, ...vals) {
+      const arr = lists.get(key) || [];
+      for (const v of vals.flat()) arr.unshift(v);
+      lists.set(key, arr);
+      return arr.length;
+    },
+    async lrange(key, start, stop) {
+      const arr = lists.get(key) || [];
+      const e = stop < 0 ? arr.length + stop + 1 : stop + 1;
+      return arr.slice(start, e).map(clone);
+    },
+    async ltrim(key, start, stop) {
+      const arr = lists.get(key) || [];
+      const e = stop < 0 ? arr.length + stop + 1 : stop + 1;
+      lists.set(key, arr.slice(start, e));
+      return "OK";
     },
   };
 }
@@ -479,4 +498,41 @@ test("Examen + compte : lancement bloqué sans solde, ok après recharge, débit
   assert.equal(board.status, "ended");
   assert.equal(board.settled.charged, true);
   assert.equal((await getAccountById(account.id)).balanceAr, 4000);
+});
+
+test("Examen + compte : un enregistrement est ajouté à l'historique à la clôture", async () => {
+  setRedisClient(createFakeRedis());
+  const { account } = await createAccount({ email: "p@e.mg", password: "secret1" });
+  const meta = await createRoom("Prof", account.id);
+  await setQuiz(meta.code, {
+    title: "Histoire test",
+    mode: "examen",
+    capacity: "small",
+    totalDurationSec: 600,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+  await registerPlayer(meta.code, "Alice");
+  await topupTest(account.id, 5000);
+  await startGame(meta.code);
+  await endSession(meta.code);
+  await getLeaderboard(meta.code); // déclenche le settle + snapshot
+
+  const list = await listExamRecords(account.id);
+  assert.equal(list.length, 1);
+  assert.equal(list[0].title, "Histoire test");
+  assert.equal(list[0].priceAr, 1000);
+  assert.equal(list[0].participantCount, 1);
+
+  const detail = await getExamRecord(account.id, list[0].id);
+  assert.equal(detail.leaderboard[0].pseudo, "Alice");
 });

@@ -101,9 +101,12 @@ export default function HostPage() {
     return (
       <div className="center-screen">
         <div className="container container--narrow stack gap-24">
-          <Link href="/" className="pill" style={{ alignSelf: "flex-start" }}>
-            ← Accueil
-          </Link>
+          <div className="row row--between">
+            <Link href="/" className="pill">← Accueil</Link>
+            {account && (
+              <Link href="/host/history" className="pill">Mes examens</Link>
+            )}
+          </div>
           <form className="card stack gap-16" onSubmit={createRoom}>
             <span className="eyebrow">Espace formateur</span>
             <h1 style={{ fontSize: "2rem" }}>Configurer un quiz</h1>
