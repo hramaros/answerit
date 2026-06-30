@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Shape from "@/components/Shape";
 import { apiPost } from "@/lib/api";
 import { normalizeCode } from "@/lib/code";
 
@@ -35,10 +34,8 @@ export default function HomePage() {
       <div className="container container--narrow stack gap-24">
         <div className="row row--between">
           <span className="brand">
-            <span className="brand__mark">
-              <i /><i /><i /><i />
-            </span>
-            valio<b>.fanontaniana</b>
+            <img src="/logo.png" alt="valio" className="brand__logo" />
+            <b>.fanontaniana</b>
           </span>
           <Link href="/host" className="pill">
             Espace formateur
@@ -46,12 +43,6 @@ export default function HomePage() {
         </div>
 
         <div className="hero stack gap-16">
-          <div className="hero__shapes" aria-hidden>
-            <span><Shape kind="circle" size={22} color="#161228" /></span>
-            <span><Shape kind="triangle" size={22} color="#161228" /></span>
-            <span><Shape kind="square" size={22} color="#161228" /></span>
-            <span><Shape kind="diamond" size={22} color="#161228" /></span>
-          </div>
           <h1>
             Un code, un pseudo, <em>et c'est parti.</em>
           </h1>

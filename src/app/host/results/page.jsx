@@ -44,8 +44,8 @@ function HostResultsInner() {
     <div className="container stack gap-24">
       <div className="row row--between wrap gap-12">
         <Link href="/" className="brand">
-          <span className="brand__mark"><i /><i /><i /><i /></span>
-          valio<b>.fanontaniana</b>
+          <img src="/logo.png" alt="valio" className="brand__logo" />
+          <b>.fanontaniana</b>
         </Link>
         <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
           <span className="tiny muted">Code</span>
