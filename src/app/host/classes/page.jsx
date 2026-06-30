@@ -10,6 +10,7 @@ export default function HostClassesPage() {
   const [name, setName] = useState("");
   const [selected, setSelected] = useState(null); // détail complet d'une classe
   const [studentName, setStudentName] = useState("");
+  const [gradebook, setGradebook] = useState(null);
 
   const refreshList = useCallback(async () => {
     const { ok, data } = await apiGet("/api/host/classes");
@@ -31,8 +32,15 @@ export default function HostClassesPage() {
   }
 
   async function openClass(id) {
+    setGradebook(null);
     const { ok, data } = await apiGet(`/api/host/classes/${id}`);
     if (ok) setSelected(data.classroom);
+  }
+
+  async function openGradebook() {
+    if (!selected) return;
+    const { ok, data } = await apiGet(`/api/host/classes/${selected.id}/gradebook`);
+    if (ok) setGradebook(data.gradebook);
   }
 
   async function addStu(e) {
@@ -198,6 +206,48 @@ export default function HostClassesPage() {
                   </div>
                 ))}
               </div>
+            )}
+
+            <button
+              type="button"
+              className="btn btn--ghost btn--block"
+              onClick={openGradebook}
+            >
+              📊 Carnet de notes
+            </button>
+            {gradebook && (
+              gradebook.exams.length === 0 ? (
+                <p className="muted tiny">Aucun examen pour cette classe.</p>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="gradebook">
+                    <thead>
+                      <tr>
+                        <th>Élève</th>
+                        {gradebook.exams.map((e) => (
+                          <th key={e.id}>{e.title}</th>
+                        ))}
+                        <th>Moy.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {gradebook.rows.map((row) => (
+                        <tr key={row.studentId}>
+                          <td>{row.name}</td>
+                          {gradebook.exams.map((e) => (
+                            <td key={e.id}>
+                              {row.notes[e.id] == null ? "—" : row.notes[e.id]}
+                            </td>
+                          ))}
+                          <td>
+                            <strong>{row.avgNote == null ? "—" : row.avgNote}</strong>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
           </div>
         </div>

@@ -20,6 +20,8 @@ export const GET = handler(async (_request, { params }) => {
     nbQuestions: meta.quiz?.questions.length || 0,
     mode: meta.quiz?.mode || null,
     capacity: meta.quiz?.capacity || null,
+    className: meta.quiz?.className || null,
+    roster: meta.quiz?.roster || null,
     participants,
     startedAt: meta.startedAt,
     durationMs: meta.durationMs,

@@ -1,7 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { setRedisClient } from "./redis.js";
-import { saveExamRecord, listExamRecords, getExamRecord } from "./history.js";
+import {
+  saveExamRecord,
+  listExamRecords,
+  getExamRecord,
+  getClassExamRecords,
+} from "./history.js";
 
 function createFakeRedis() {
   const store = new Map();
@@ -82,4 +87,18 @@ test("historique isolé par compte", async () => {
   await saveExamRecord(rec("ex2", "acc2"));
   assert.equal((await listExamRecords("acc1")).length, 1);
   assert.equal((await listExamRecords("acc2")).length, 1);
+});
+
+test("index par classe : getClassExamRecords (ordre chronologique)", async () => {
+  setRedisClient(createFakeRedis());
+  await saveExamRecord(rec("ex1", "acc1", { classId: "c1" }));
+  await saveExamRecord(rec("ex2", "acc1", { classId: "c1" }));
+  await saveExamRecord(rec("ex3", "acc1", { classId: "c2" }));
+
+  const c1 = await getClassExamRecords("c1");
+  assert.equal(c1.length, 2);
+  assert.equal(c1[0].id, "ex1"); // plus ancien d'abord
+  assert.equal(c1[1].id, "ex2");
+  assert.equal((await getClassExamRecords("c2")).length, 1);
+  assert.equal((await getClassExamRecords("inexistante")).length, 0);
 });

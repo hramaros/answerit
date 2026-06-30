@@ -5,8 +5,8 @@ export const dynamic = "force-dynamic";
 
 export const POST = handler(async (request, { params }) => {
   const code = await codeFromParams(params);
-  const { pseudo } = await readBody(request);
-  const result = await registerPlayer(code, pseudo);
+  const { pseudo, studentId } = await readBody(request);
+  const result = await registerPlayer(code, pseudo, studentId);
   if (!result.ok) return json({ error: result.error }, result.status || 400);
   return json({ playerId: result.playerId, pseudo: result.pseudo });
 });

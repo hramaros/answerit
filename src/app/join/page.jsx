@@ -32,7 +32,7 @@ function JoinInner() {
     () => async () => (await apiGet(`/api/room/${code}/state`)).data,
     [code],
   );
-  const state = usePolling(stateFetcher, 1200, step === "lobby");
+  const state = usePolling(stateFetcher, 1200, true);
 
   // Bascule vers le jeu / résultats quand l'hôte lance ou que le temps est fini.
   useEffect(() => {
@@ -52,6 +52,23 @@ function JoinInner() {
     setLoading(true);
     const { ok, data } = await apiPost(`/api/player/${code}/register`, {
       pseudo: clean,
+    });
+    setLoading(false);
+    if (!ok) {
+      setError(data?.error || "Inscription impossible.");
+      return;
+    }
+    savePlayerSession({ code, playerId: data.playerId, pseudo: data.pseudo });
+    setPlayerId(data.playerId);
+    setStep("lobby");
+  }
+
+  // Examen nominatif : le participant choisit son nom dans le roster de la classe.
+  async function joinAs(student) {
+    setError("");
+    setLoading(true);
+    const { ok, data } = await apiPost(`/api/player/${code}/register`, {
+      studentId: student.id,
     });
     setLoading(false);
     if (!ok) {
@@ -86,28 +103,62 @@ function JoinInner() {
               Salle <span className="code-chip" style={{ fontSize: "1rem" }}>{code}</span>
             </span>
           </div>
-          <form className="card stack gap-16" onSubmit={register}>
-            <span className="eyebrow">Étape 2 / 2</span>
-            <h1 style={{ fontSize: "2rem" }}>Votre pseudo</h1>
-            <p className="muted">Il apparaîtra dans le classement.</p>
-            <input
-              className="input"
-              placeholder="ex. Lucie"
-              value={pseudo}
-              onChange={(e) => setPseudo(e.target.value)}
-              maxLength={30}
-              autoFocus
-              autoComplete="off"
-            />
-            {error && <div className="error">{error}</div>}
-            <button
-              type="submit"
-              className="btn btn--primary btn--lg btn--block"
-              disabled={loading}
-            >
-              {loading ? "…" : "Rejoindre la salle"}
-            </button>
-          </form>
+          {state?.roster ? (
+            <div className="card stack gap-16">
+              <span className="eyebrow">
+                Étape 2 / 2{state.className ? ` · ${state.className}` : ""}
+              </span>
+              <h1 style={{ fontSize: "2rem" }}>Choisissez votre nom</h1>
+              <p className="muted">Sélectionnez votre nom dans la liste de la classe.</p>
+              <div className="players">
+                {state.roster.map((s) => {
+                  const taken = (state.participants || []).some(
+                    (p) => p.studentId === s.id,
+                  );
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="player-chip"
+                      style={{
+                        cursor: taken ? "not-allowed" : "pointer",
+                        opacity: taken ? 0.45 : 1,
+                      }}
+                      disabled={taken || loading}
+                      onClick={() => joinAs(s)}
+                    >
+                      {s.name}
+                      {taken ? " ✓" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              {error && <div className="error">{error}</div>}
+            </div>
+          ) : (
+            <form className="card stack gap-16" onSubmit={register}>
+              <span className="eyebrow">Étape 2 / 2</span>
+              <h1 style={{ fontSize: "2rem" }}>Votre pseudo</h1>
+              <p className="muted">Il apparaîtra dans le classement.</p>
+              <input
+                className="input"
+                placeholder="ex. Lucie"
+                value={pseudo}
+                onChange={(e) => setPseudo(e.target.value)}
+                maxLength={30}
+                autoFocus
+                autoComplete="off"
+              />
+              {error && <div className="error">{error}</div>}
+              <button
+                type="submit"
+                className="btn btn--primary btn--lg btn--block"
+                disabled={loading}
+              >
+                {loading ? "…" : "Rejoindre la salle"}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     );

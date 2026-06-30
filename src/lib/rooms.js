@@ -18,6 +18,7 @@ import { getAccountById, debit } from "./accounts.js";
 import { canAfford } from "./wallet.js";
 import { saveExamRecord } from "./history.js";
 import { examAggregate } from "./analytics.js";
+import { getClass } from "./classrooms.js";
 
 // Durée de vie d'une salle dans Redis (auto-suppression = côté « éphémère »).
 const ROOM_TTL_SEC = 2 * 60 * 60; // 2h
@@ -175,6 +176,15 @@ export async function setQuiz(code, quiz) {
   const valid = validateQuiz(quiz);
   if (!valid.ok) return valid;
   meta.quiz = sanitizeQuiz(quiz);
+  // Examen nominatif : on fige le roster de la classe choisie dans le quiz.
+  if (meta.quiz.mode === "examen" && quiz.classId && meta.hostAccountId) {
+    const cls = await getClass(meta.hostAccountId, quiz.classId);
+    if (cls) {
+      meta.quiz.classId = cls.id;
+      meta.quiz.className = cls.name;
+      meta.quiz.roster = cls.students;
+    }
+  }
   await saveMeta(meta);
   return { ok: true };
 }
@@ -232,14 +242,30 @@ export async function joinRoom(code) {
   return { ok: true };
 }
 
-export async function registerPlayer(code, pseudo) {
+export async function registerPlayer(code, pseudo, studentId = null) {
   const redis = getRedis();
   const meta = await getMeta(code);
   if (!meta) return { ok: false, status: 404, error: "Salle introuvable." };
   if (deriveStatus(meta) !== "lobby")
     return { ok: false, status: 409, error: "Les inscriptions sont closes." };
-  const clean = String(pseudo || "").trim().slice(0, 30);
-  if (!clean) return { ok: false, status: 400, error: "Pseudo requis." };
+
+  const roster = meta.quiz?.roster;
+  let clean;
+  let sid = null;
+  if (Array.isArray(roster) && roster.length > 0) {
+    // Examen nominatif : il faut choisir un élève du roster, une seule fois.
+    const student = roster.find((s) => s.id === studentId);
+    if (!student)
+      return { ok: false, status: 400, error: "Choisissez votre nom dans la liste." };
+    const already = (await listPlayers(code)).some((p) => p.studentId === student.id);
+    if (already)
+      return { ok: false, status: 409, error: "Cet élève a déjà rejoint la salle." };
+    clean = student.name;
+    sid = student.id;
+  } else {
+    clean = String(pseudo || "").trim().slice(0, 30);
+    if (!clean) return { ok: false, status: 400, error: "Pseudo requis." };
+  }
 
   const cap = maxParticipants(meta.quiz?.mode, meta.quiz?.capacity);
   if (cap !== null) {
@@ -253,7 +279,7 @@ export async function registerPlayer(code, pseudo) {
   }
 
   const id = generateId("p");
-  const player = { id, pseudo: clean, score: 0, answered: {}, shownAt: {} };
+  const player = { id, pseudo: clean, studentId: sid, score: 0, answered: {}, shownAt: {} };
   await redis.set(playerKey(code, id), player, { ex: ROOM_TTL_SEC });
   await redis.sadd(playerIdsKey(code), id);
   await redis.expire(playerIdsKey(code), ROOM_TTL_SEC);
@@ -282,7 +308,11 @@ export async function listPlayers(code) {
 /** Liste légère pour le lobby (pas de données de score sensibles). */
 export async function listParticipants(code) {
   const players = await listPlayers(code);
-  return players.map((p) => ({ playerId: p.id, pseudo: p.pseudo }));
+  return players.map((p) => ({
+    playerId: p.id,
+    pseudo: p.pseudo,
+    studentId: p.studentId || null,
+  }));
 }
 
 /* ------------------------------------------------------------------ */
@@ -469,6 +499,7 @@ export async function getLeaderboard(code) {
     players.map((p) => ({
       id: p.id,
       pseudo: p.pseudo,
+      studentId: p.studentId || null,
       score: p.score,
       nbCorrect: Object.values(p.answered || {}).filter((a) => a.correct).length,
     })),
@@ -500,6 +531,8 @@ export async function getLeaderboard(code) {
         title: meta.quiz?.title || "Quiz",
         mode,
         capacity,
+        classId: meta.quiz?.classId || null,
+        className: meta.quiz?.className || null,
         priceAr,
         charged,
         nbQuestions,

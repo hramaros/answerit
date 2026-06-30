@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import QuestionBuilder from "@/components/QuestionBuilder";
-import { apiPost } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { generateId } from "@/lib/code";
 import { DEFAULT_COLORS } from "@/lib/shapes";
 import { saveHostSession } from "@/lib/session";
@@ -33,6 +33,8 @@ export default function HostPage() {
   const [duration, setDuration] = useState(120);
   const [mode, setMode] = useState("libre");
   const [capacity, setCapacity] = useState("small");
+  const [classId, setClassId] = useState("");
+  const [classes, setClasses] = useState([]);
   const [code, setCode] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [error, setError] = useState("");
@@ -45,6 +47,14 @@ export default function HostPage() {
     if (account) setMode("examen");
     else setShowAuth(true);
   }
+
+  // Charge les classes du formateur connecté (pour l'examen nominatif).
+  useEffect(() => {
+    if (!account) return;
+    apiGet("/api/host/classes").then(({ ok, data }) => {
+      if (ok) setClasses(data.classes);
+    });
+  }, [account]);
 
   async function createRoom(e) {
     e.preventDefault();
@@ -85,6 +95,7 @@ export default function HostPage() {
       title: title.trim() || "Quiz",
       mode,
       capacity,
+      classId: classId || null,
       totalDurationSec: Number(duration),
       questions,
     };
@@ -198,6 +209,28 @@ export default function HostPage() {
                     Débloque la réponse libre et l'export. Débité en fin de session
                     (paiement à venir).
                   </p>
+                  {classes.length > 0 && (
+                    <div>
+                      <label className="label" htmlFor="cls">Classe (optionnel)</label>
+                      <select
+                        id="cls"
+                        className="input"
+                        value={classId}
+                        onChange={(e) => setClassId(e.target.value)}
+                      >
+                        <option value="">Aucune — pseudos libres</option>
+                        {classes.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.studentCount})
+                          </option>
+                        ))}
+                      </select>
+                      <p className="tiny muted" style={{ marginTop: 6 }}>
+                        Avec une classe, les participants choisissent leur nom dans la
+                        liste (résultats nominatifs).
+                      </p>
+                    </div>
+                  )}
                   {account && (
                     <p className="tiny muted">
                       Connecté : {account.email} · Solde : {account.balanceAr} Ar

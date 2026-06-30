@@ -4,6 +4,7 @@ import { getRedis } from "./redis.js";
 const HISTORY_MAX = 200;
 const recordKey = (id) => `examRecord:${id}`;
 const listKey = (accountId) => `examHistory:${accountId}`;
+const classListKey = (classId) => `classExams:${classId}`;
 
 /** Résumé (liste) : on n'expose pas le classement complet. */
 function summarize(r) {
@@ -13,6 +14,8 @@ function summarize(r) {
     title: r.title,
     mode: r.mode,
     capacity: r.capacity,
+    classId: r.classId,
+    className: r.className,
     endedAt: r.endedAt,
     priceAr: r.priceAr,
     charged: r.charged,
@@ -28,7 +31,22 @@ export async function saveExamRecord(record) {
   await redis.set(recordKey(record.id), record);
   await redis.lpush(listKey(record.accountId), record.id);
   await redis.ltrim(listKey(record.accountId), 0, HISTORY_MAX - 1);
+  // Index par classe (pour le carnet de notes).
+  if (record.classId) {
+    await redis.lpush(classListKey(record.classId), record.id);
+    await redis.ltrim(classListKey(record.classId), 0, HISTORY_MAX - 1);
+  }
   return record.id;
+}
+
+/** Examens complets (avec classement) rattachés à une classe — ordre chronologique. */
+export async function getClassExamRecords(classId, limit = 200) {
+  const redis = getRedis();
+  const ids = await redis.lrange(classListKey(classId), 0, limit - 1);
+  if (!ids || ids.length === 0) return [];
+  const records = await redis.mget(...ids.map(recordKey));
+  // lpush met le plus récent en tête ; on remet en ordre chronologique.
+  return records.filter(Boolean).reverse();
 }
 
 export async function listExamRecords(accountId, limit = 50) {

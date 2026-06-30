@@ -20,6 +20,7 @@ import {
 } from "./rooms.js";
 import { createAccount, topupTest, getAccountById } from "./accounts.js";
 import { listExamRecords, getExamRecord } from "./history.js";
+import { createClass, addStudent } from "./classrooms.js";
 
 // Faux Redis en mémoire qui clone les valeurs (mime la (dé)sérialisation Upstash
 // et attrape ainsi les bugs de mutation par référence).
@@ -535,4 +536,64 @@ test("Examen + compte : un enregistrement est ajouté à l'historique à la clô
 
   const detail = await getExamRecord(account.id, list[0].id);
   assert.equal(detail.leaderboard[0].pseudo, "Alice");
+});
+
+test("Examen nominatif : roster figé, inscription par élève, résultats nominatifs", async () => {
+  setRedisClient(createFakeRedis());
+  const { account } = await createAccount({ email: "p@e.mg", password: "secret1" });
+  const cls = await createClass(account.id, "6ème A");
+  const alice = await addStudent(account.id, cls.classroom.id, "Alice");
+  const bob = await addStudent(account.id, cls.classroom.id, "Bob");
+
+  const meta = await createRoom("Prof", account.id);
+  await setQuiz(meta.code, {
+    title: "Contrôle",
+    mode: "examen",
+    capacity: "small",
+    classId: cls.classroom.id,
+    totalDurationSec: 600,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+
+  const full = await getMeta(meta.code);
+  assert.equal(full.quiz.className, "6ème A");
+  assert.equal(full.quiz.roster.length, 2);
+
+  // Inscription nominative
+  const r = await registerPlayer(meta.code, null, alice.student.id);
+  assert.equal(r.ok, true);
+  assert.equal(r.pseudo, "Alice");
+
+  // Même élève → refusé
+  const dup = await registerPlayer(meta.code, null, alice.student.id);
+  assert.equal(dup.ok, false);
+  assert.equal(dup.status, 409);
+
+  // studentId inconnu → refusé
+  const bad = await registerPlayer(meta.code, "Pirate", "inconnu");
+  assert.equal(bad.ok, false);
+  assert.equal(bad.status, 400);
+
+  await registerPlayer(meta.code, null, bob.student.id);
+  await topupTest(account.id, 5000);
+  await startGame(meta.code);
+  await endSession(meta.code);
+
+  const board = await getLeaderboard(meta.code);
+  assert.equal(board.status, "ended");
+  assert.ok(board.leaderboard.every((p) => p.studentId)); // nominatif
+
+  const list = await listExamRecords(account.id);
+  assert.equal(list[0].title, "Contrôle");
+  assert.equal(list[0].className, "6ème A");
 });

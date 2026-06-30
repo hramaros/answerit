@@ -492,6 +492,30 @@ button {
   padding: 22px;
   box-shadow: var(--shadow-lift);
 }
+
+/* ---------- Carnet de notes ---------- */
+.gradebook {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+.gradebook th,
+.gradebook td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: center;
+  white-space: nowrap;
+}
+.gradebook th:first-child,
+.gradebook td:first-child {
+  text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+}
+.gradebook thead th {
+  background: var(--surface-2);
+}
 .seg {
   display: inline-flex;
   background: var(--ink);
