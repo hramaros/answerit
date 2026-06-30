@@ -11,7 +11,11 @@ import {
   submitAnswer,
   getLeaderboard,
   getMe,
+  getMeta,
   deriveStatus,
+  gradeFreeAnswer,
+  finalizeSession,
+  getReviewData,
 } from "./rooms.js";
 
 // Faux Redis en mémoire qui clone les valeurs (mime la (dé)sérialisation Upstash
@@ -180,4 +184,110 @@ test("setQuiz refuse un quiz invalide (aucune bonne réponse)", async () => {
   });
   assert.equal(res.ok, false);
   assert.match(res.error, /bonne réponse/i);
+});
+
+test("validateQuiz accepte une question à réponse libre (sans réponses prédéfinies)", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  const res = await setQuiz(meta.code, {
+    title: "Ouvert",
+    totalDurationSec: 30,
+    questions: [{ text: "Expliquez X", type: "free", basePoints: 500 }],
+  });
+  assert.equal(res.ok, true);
+});
+
+test("réponses libres : soumission → review → validation → finalisation", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  const code = meta.code;
+
+  const quizRes = await setQuiz(code, {
+    title: "Capitales (ouvert)",
+    totalDurationSec: 60,
+    questions: [
+      {
+        text: "Capitale de Madagascar ?",
+        type: "free",
+        basePoints: 1000,
+        reference: "Antananarivo",
+      },
+    ],
+  });
+  assert.equal(quizRes.ok, true);
+
+  const alice = await registerPlayer(code, "Alice");
+  const bob = await registerPlayer(code, "Bob");
+  await startGame(code);
+
+  const full = await getMeta(code);
+  const [q] = full.quiz.questions;
+  assert.equal(q.type, "free");
+  assert.equal(q.reference, "Antananarivo");
+  assert.deepEqual(q.answers, []);
+
+  // Soumissions libres : pas de point immédiat, en attente de validation
+  await revealQuestion(code, alice.playerId, q.id);
+  const aSub = await submitAnswer(code, alice.playerId, q.id, null, "Antananarivo");
+  assert.equal(aSub.ok, true);
+  assert.equal(aSub.pending, true);
+  await submitAnswer(code, bob.playerId, q.id, null, "Toamasina");
+
+  // Tant que rien n'est validé, scores à 0
+  let board = await getLeaderboard(code);
+  assert.equal(board.leaderboard.every((p) => p.score === 0), true);
+
+  // Chrono écoulé sans finalisation → statut "review"
+  const m2 = await getMeta(code);
+  assert.equal(deriveStatus(m2, m2.startedAt + m2.durationMs + 1), "review");
+
+  // Vue correction : 2 soumissions en attente
+  const review = await getReviewData(code);
+  assert.equal(review.questions.length, 1);
+  assert.equal(review.questions[0].submissions.length, 2);
+  assert.equal(review.pending, 2);
+
+  // Le formateur valide Alice, refuse Bob
+  const g1 = await gradeFreeAnswer(code, alice.playerId, q.id, true);
+  assert.equal(g1.ok, true);
+  assert.ok(g1.points > 0, "réponse validée = points positifs");
+  await gradeFreeAnswer(code, bob.playerId, q.id, false);
+  assert.equal((await getReviewData(code)).pending, 0);
+
+  // Finalisation → "ended" et notes débloquées
+  assert.equal((await finalizeSession(code)).ok, true);
+  assert.equal(deriveStatus(await getMeta(code)), "ended");
+
+  board = await getLeaderboard(code);
+  const aliceRow = board.leaderboard.find((p) => p.pseudo === "Alice");
+  const bobRow = board.leaderboard.find((p) => p.pseudo === "Bob");
+  assert.ok(aliceRow.score > 0);
+  assert.equal(aliceRow.nbCorrect, 1);
+  assert.equal(aliceRow.note, 20); // 1/1 bonne réponse
+  assert.equal(bobRow.score, 0);
+  assert.equal(bobRow.note, 0);
+  assert.equal(aliceRow.rank, 1);
+});
+
+test("deriveStatus : sans réponse libre, le chrono écoulé clôt directement", async () => {
+  setRedisClient(createFakeRedis());
+  const meta = await createRoom("Prof");
+  await setQuiz(meta.code, {
+    title: "QCM",
+    totalDurationSec: 30,
+    questions: [
+      {
+        text: "2+2 ?",
+        type: "single",
+        basePoints: 1000,
+        answers: [
+          { text: "4", color: "#fff", correct: true },
+          { text: "5", color: "#fff", correct: false },
+        ],
+      },
+    ],
+  });
+  await startGame(meta.code);
+  const m = await getMeta(meta.code);
+  assert.equal(deriveStatus(m, m.startedAt + m.durationMs + 1), "ended");
 });

@@ -176,6 +176,12 @@ button {
   text-transform: uppercase;
 }
 
+.input--area {
+  min-height: 120px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
 /* ---------- Buttons ---------- */
 .btn {
   display: inline-flex;
@@ -253,18 +259,6 @@ button {
   letter-spacing: 0.28em;
   font-size: 1.4rem;
   color: var(--accent-bright);
-}
-
-/* ---------- Shape glyphs (answer language) ---------- */
-.shape { width: 18px; height: 18px; flex: none; display: inline-block; }
-.shape--circle { border-radius: 50%; background: currentColor; }
-.shape--square { border-radius: 4px; background: currentColor; }
-.shape--diamond { background: currentColor; transform: rotate(45deg); border-radius: 3px; }
-.shape--triangle {
-  width: 0; height: 0; background: none;
-  border-left: 10px solid transparent;
-  border-right: 10px solid transparent;
-  border-bottom: 17px solid currentColor;
 }
 
 /* ---------- Answer tiles (signature) ---------- */
@@ -460,6 +454,23 @@ button {
   padding: 0;
   cursor: pointer;
   background: none;
+}
+
+/* ---------- Correction des réponses libres (formateur) ---------- */
+.grade-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+}
+.grade-row__ans {
+  flex: 1;
+  min-width: 180px;
+  word-break: break-word;
 }
 .seg {
   display: inline-flex;

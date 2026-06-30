@@ -20,7 +20,8 @@ function PlayInner() {
   const [errorMsg, setErrorMsg] = useState("");
   const [qIndex, setQIndex] = useState(0);
   const [selected, setSelected] = useState([]);
-  const [feedback, setFeedback] = useState(null); // { correct, points }
+  const [freeText, setFreeText] = useState("");
+  const [feedback, setFeedback] = useState(null); // { correct, points } | { pending }
   const [submitting, setSubmitting] = useState(false);
   const revealedRef = useRef(new Set());
 
@@ -98,9 +99,33 @@ function PlayInner() {
     setTimeout(advance, 1300);
   }
 
+  async function submitFree() {
+    if (submitting || !question) return;
+    const text = freeText.trim();
+    if (!text) return;
+    setSubmitting(true);
+    const { ok, status, data } = await apiPost(`/api/room/${code}/answer`, {
+      playerId,
+      questionId: question.id,
+      text,
+    });
+    setSubmitting(false);
+    if (!ok) {
+      if (status === 409 && /écoulé|ecoule/i.test(data?.error || "")) {
+        goToResult();
+        return;
+      }
+      advance();
+      return;
+    }
+    setFeedback({ pending: true });
+    setTimeout(advance, 1300);
+  }
+
   function advance() {
     setFeedback(null);
     setSelected([]);
+    setFreeText("");
     setQIndex((i) => {
       const next = i + 1;
       if (next >= (quiz?.questions.length || 0)) {
@@ -166,48 +191,85 @@ function PlayInner() {
             <p className="tiny muted" style={{ marginTop: 8 }}>
               {question.type === "multiple"
                 ? "Plusieurs réponses possibles"
-                : "Une seule réponse"}
+                : question.type === "free"
+                  ? "Réponse libre à saisir"
+                  : "Une seule réponse"}
             </p>
           </div>
 
-          <div className="answers">
-            {question.answers.map((a, i) => (
-              <AnswerTile
-                key={a.id}
-                answer={a}
-                index={i}
-                selected={selected.includes(a.id)}
-                dim={!!feedback}
-                disabled={!!feedback || submitting}
-                onClick={() => toggle(a.id)}
-              />
+          {question.type === "free" ? (
+            !feedback && (
+              <div className="stack gap-12">
+                <textarea
+                  className="input input--area"
+                  placeholder="Saisissez votre réponse…"
+                  value={freeText}
+                  onChange={(e) => setFreeText(e.target.value)}
+                  maxLength={500}
+                  disabled={submitting}
+                  autoFocus
+                />
+                <button
+                  className="btn btn--primary btn--lg btn--block"
+                  disabled={!freeText.trim() || submitting}
+                  onClick={submitFree}
+                >
+                  Valider ma réponse
+                </button>
+              </div>
+            )
+          ) : (
+            <>
+              <div className="answers">
+                {question.answers.map((a) => (
+                  <AnswerTile
+                    key={a.id}
+                    answer={a}
+                    selected={selected.includes(a.id)}
+                    dim={!!feedback}
+                    disabled={!!feedback || submitting}
+                    onClick={() => toggle(a.id)}
+                  />
+                ))}
+              </div>
+
+              {question.type === "multiple" && !feedback && (
+                <button
+                  className="btn btn--primary btn--lg btn--block"
+                  disabled={selected.length === 0 || submitting}
+                  onClick={() => submitAnswer(selected)}
+                >
+                  Valider ma réponse
+                </button>
+              )}
+            </>
+          )}
+
+          {feedback &&
+            (feedback.pending ? (
+              <div
+                className="card"
+                style={{ textAlign: "center", borderColor: "var(--accent)" }}
+              >
+                <h2 style={{ color: "var(--accent-bright)" }}>Réponse envoyée</h2>
+                <p className="muted">
+                  Elle sera validée par le formateur après le chrono.
+                </p>
+              </div>
+            ) : (
+              <div
+                className="card"
+                style={{
+                  textAlign: "center",
+                  borderColor: feedback.correct ? "var(--c-mint)" : "var(--c-coral)",
+                }}
+              >
+                <h2 style={{ color: feedback.correct ? "var(--c-mint)" : "var(--c-coral)" }}>
+                  {feedback.correct ? "Bonne réponse !" : "Raté…"}
+                </h2>
+                <p className="muted">+{feedback.points} points</p>
+              </div>
             ))}
-          </div>
-
-          {question.type === "multiple" && !feedback && (
-            <button
-              className="btn btn--primary btn--lg btn--block"
-              disabled={selected.length === 0 || submitting}
-              onClick={() => submitAnswer(selected)}
-            >
-              Valider ma réponse
-            </button>
-          )}
-
-          {feedback && (
-            <div
-              className="card"
-              style={{
-                textAlign: "center",
-                borderColor: feedback.correct ? "var(--c-mint)" : "var(--c-coral)",
-              }}
-            >
-              <h2 style={{ color: feedback.correct ? "var(--c-mint)" : "var(--c-coral)" }}>
-                {feedback.correct ? "Bonne réponse !" : "Raté…"}
-              </h2>
-              <p className="muted">+{feedback.points} points</p>
-            </div>
-          )}
         </>
       )}
     </div>

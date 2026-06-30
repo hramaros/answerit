@@ -1,9 +1,7 @@
-import Shape from "./Shape";
-import { shapeForIndex, readableText } from "@/lib/shapes";
+import { readableText } from "@/lib/shapes";
 
 export default function AnswerTile({
   answer,
-  index,
   selected = false,
   dim = false,
   onClick,
@@ -21,9 +19,6 @@ export default function AnswerTile({
       disabled={disabled}
       aria-pressed={selected}
     >
-      <span className="answer-tile__glyph" style={{ color: text }}>
-        <Shape kind={shapeForIndex(index)} size={18} />
-      </span>
       <span>{answer.text}</span>
     </button>
   );

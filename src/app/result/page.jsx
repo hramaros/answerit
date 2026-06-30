@@ -34,13 +34,18 @@ function ResultInner() {
   }
 
   if (!ended) {
+    const reviewing = board.status === "review";
     return (
       <div className="center-screen">
         <div className="container container--narrow stack gap-16" style={{ textAlign: "center" }}>
           <div className="spin" style={{ margin: "0 auto" }} />
-          <h1 style={{ fontSize: "2rem" }}>Encore un instant…</h1>
+          <h1 style={{ fontSize: "2rem" }}>
+            {reviewing ? "Correction en cours…" : "Encore un instant…"}
+          </h1>
           <p className="muted">
-            En attente de la fin du chrono pour dévoiler le classement.
+            {reviewing
+              ? "Le formateur valide les réponses libres. Le classement s'affiche dès qu'il a finalisé la session."
+              : "En attente de la fin du chrono pour dévoiler le classement."}
           </p>
         </div>
       </div>

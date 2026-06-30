@@ -37,9 +37,6 @@ export default function HomePage() {
             <img src="/logo.png" alt="valio" className="brand__logo" />
             <b>.fanontaniana</b>
           </span>
-          <Link href="/host" className="pill">
-            Espace formateur
-          </Link>
         </div>
 
         <div className="hero stack gap-16">

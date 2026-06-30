@@ -22,14 +22,25 @@ const now = () => Date.now();
 /* Statut dérivé                                                       */
 /* ------------------------------------------------------------------ */
 
+/** Le quiz comporte-t-il au moins une question à réponse libre (à corriger) ? */
+export function quizHasFree(quiz) {
+  return !!quiz?.questions?.some((q) => q.type === "free");
+}
+
 /**
- * Statut effectif d'une salle. La fin de partie est DÉRIVÉE des timestamps :
+ * Statut effectif d'une salle. La fin du chrono est DÉRIVÉE des timestamps :
  * pas besoin de cron pour clôturer une partie sur Vercel.
+ *
+ * Avec des réponses libres, la fin du chrono n'achève PAS la session : elle passe
+ * en « review » (le formateur valide chaque réponse libre) jusqu'à la finalisation
+ * explicite (`finalizedAt`), qui seule débloque le classement et les notes.
  */
 export function deriveStatus(meta, ts = now()) {
   if (!meta) return null;
+  if (meta.finalizedAt) return "ended";
   if (meta.status === "running" && meta.startedAt) {
-    if (ts > meta.startedAt + meta.durationMs) return "ended";
+    if (ts <= meta.startedAt + meta.durationMs) return "running";
+    return quizHasFree(meta.quiz) ? "review" : "ended";
   }
   return meta.status;
 }
@@ -54,6 +65,7 @@ export async function createRoom(hostName) {
     quiz: null,
     startedAt: null,
     durationMs: 0,
+    finalizedAt: null,
     createdAt: now(),
   };
   await redis.set(metaKey(code), meta, { ex: ROOM_TTL_SEC });
@@ -80,6 +92,8 @@ export function validateQuiz(quiz) {
   for (const [i, q] of quiz.questions.entries()) {
     if (!q.text || !String(q.text).trim())
       return { ok: false, error: `Question ${i + 1} : texte manquant.` };
+    // Réponse libre : pas de réponses prédéfinies, validation manuelle par le formateur.
+    if (q.type === "free") continue;
     if (!Array.isArray(q.answers) || q.answers.length < 2)
       return { ok: false, error: `Question ${i + 1} : au moins deux réponses.` };
     const nbCorrect = q.answers.filter((a) => a.correct).length;
@@ -103,18 +117,29 @@ function sanitizeQuiz(quiz) {
   return {
     title: String(quiz.title || "Quiz").slice(0, 120),
     totalDurationSec: Math.max(1, Math.round(Number(quiz.totalDurationSec) || 0)),
-    questions: quiz.questions.map((q) => ({
-      id: q.id || generateId("q"),
-      text: String(q.text).slice(0, 500),
-      type: q.type === "multiple" ? "multiple" : "single",
-      basePoints: Math.max(1, Math.round(Number(q.basePoints) || 1000)),
-      answers: q.answers.map((a) => ({
-        id: a.id || generateId("a"),
-        text: String(a.text).slice(0, 240),
-        color: typeof a.color === "string" ? a.color : "#4f46e5",
-        correct: !!a.correct,
-      })),
-    })),
+    questions: quiz.questions.map((q) => {
+      const type =
+        q.type === "multiple" ? "multiple" : q.type === "free" ? "free" : "single";
+      const base = {
+        id: q.id || generateId("q"),
+        text: String(q.text).slice(0, 500),
+        type,
+        basePoints: Math.max(1, Math.round(Number(q.basePoints) || 1000)),
+      };
+      if (type === "free") {
+        // Pas de réponses prédéfinies ; `reference` = corrigé indicatif (formateur).
+        return { ...base, reference: String(q.reference || "").slice(0, 240), answers: [] };
+      }
+      return {
+        ...base,
+        answers: q.answers.map((a) => ({
+          id: a.id || generateId("a"),
+          text: String(a.text).slice(0, 240),
+          color: typeof a.color === "string" ? a.color : "#4f46e5",
+          correct: !!a.correct,
+        })),
+      };
+    }),
   };
 }
 
@@ -215,7 +240,7 @@ export async function revealQuestion(code, playerId, questionId) {
   return { ok: true };
 }
 
-export async function submitAnswer(code, playerId, questionId, answerIds) {
+export async function submitAnswer(code, playerId, questionId, answerIds, text) {
   const meta = await getMeta(code);
   if (!meta) return { ok: false, status: 404, error: "Salle introuvable." };
   if (deriveStatus(meta) !== "running")
@@ -231,6 +256,21 @@ export async function submitAnswer(code, playerId, questionId, answerIds) {
 
   const shownAt = player.shownAt[questionId] || meta.startedAt;
   const timeMs = now() - shownAt;
+
+  // Réponse libre : on enregistre le texte « en attente » ; le formateur la
+  // validera après le chrono. Aucun point tant qu'elle n'est pas validée.
+  if (question.type === "free") {
+    player.answered[questionId] = {
+      text: String(text || "").trim().slice(0, 500),
+      correct: null,
+      timeMs,
+      points: 0,
+      pending: true,
+    };
+    await savePlayer(code, player);
+    return { ok: true, pending: true };
+  }
+
   const refMs = refMsForQuiz(
     meta.quiz.totalDurationSec,
     meta.quiz.questions.length,
@@ -253,6 +293,105 @@ export async function submitAnswer(code, playerId, questionId, answerIds) {
   await savePlayer(code, player);
 
   return { ok: true, correct, points, score: player.score };
+}
+
+/* ------------------------------------------------------------------ */
+/* Correction des réponses libres (formateur)                          */
+/* ------------------------------------------------------------------ */
+
+/** Recalcule le score de jeu d'un joueur depuis ses réponses (anti-dérive). */
+function sumPoints(player) {
+  return Object.values(player.answered || {}).reduce(
+    (s, a) => s + (Number(a.points) || 0),
+    0,
+  );
+}
+
+/** Le formateur valide (true) ou refuse (false) une réponse libre. */
+export async function gradeFreeAnswer(code, playerId, questionId, correct) {
+  const meta = await getMeta(code);
+  if (!meta) return { ok: false, status: 404, error: "Salle introuvable." };
+  if (meta.finalizedAt)
+    return { ok: false, status: 409, error: "Session déjà finalisée." };
+
+  const question = meta.quiz?.questions.find((q) => q.id === questionId);
+  if (!question || question.type !== "free")
+    return { ok: false, status: 400, error: "Question libre inconnue." };
+
+  const player = await getPlayer(code, playerId);
+  if (!player) return { ok: false, status: 404, error: "Joueur inconnu." };
+  const entry = player.answered?.[questionId];
+  if (!entry) return { ok: false, status: 400, error: "Aucune réponse à valider." };
+
+  const isCorrect = !!correct;
+  const refMs = refMsForQuiz(
+    meta.quiz.totalDurationSec,
+    meta.quiz.questions.length,
+  );
+  entry.correct = isCorrect;
+  entry.pending = false;
+  entry.points = computePoints({
+    correct: isCorrect,
+    timeMs: entry.timeMs,
+    refMs,
+    basePoints: question.basePoints,
+  });
+  player.answered[questionId] = entry;
+  player.score = sumPoints(player);
+  await savePlayer(code, player);
+
+  return { ok: true, correct: isCorrect, points: entry.points, score: player.score };
+}
+
+/** Finalise la session : fige le classement et débloque les notes. */
+export async function finalizeSession(code) {
+  const meta = await getMeta(code);
+  if (!meta) return { ok: false, status: 404, error: "Salle introuvable." };
+  if (!meta.startedAt)
+    return { ok: false, status: 409, error: "La partie n'a pas démarré." };
+  if (meta.finalizedAt) return { ok: true, alreadyFinalized: true };
+  meta.finalizedAt = now();
+  await saveMeta(meta);
+  return { ok: true, finalizedAt: meta.finalizedAt };
+}
+
+/** Données de correction : réponses libres groupées par question (vue formateur). */
+export async function getReviewData(code) {
+  const meta = await getMeta(code);
+  if (!meta) return null;
+  const freeQs = (meta.quiz?.questions || []).filter((q) => q.type === "free");
+  const players = await listPlayers(code);
+  const questions = freeQs.map((q) => ({
+    id: q.id,
+    text: q.text,
+    reference: q.reference || "",
+    basePoints: q.basePoints,
+    submissions: players
+      .map((p) => {
+        const entry = p.answered?.[q.id];
+        if (!entry) return null;
+        return {
+          playerId: p.id,
+          pseudo: p.pseudo,
+          text: entry.text || "",
+          correct: entry.correct ?? null, // null = en attente de validation
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.pseudo.localeCompare(b.pseudo)),
+  }));
+  const pending = questions.reduce(
+    (n, q) => n + q.submissions.filter((s) => s.correct === null).length,
+    0,
+  );
+  return {
+    status: deriveStatus(meta),
+    code: meta.code,
+    title: meta.quiz?.title || "Quiz",
+    finalized: !!meta.finalizedAt,
+    questions,
+    pending,
+  };
 }
 
 /* ------------------------------------------------------------------ */

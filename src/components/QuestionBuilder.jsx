@@ -1,7 +1,6 @@
 "use client";
-import Shape from "./Shape";
 import { generateId } from "@/lib/code";
-import { DEFAULT_COLORS, shapeForIndex } from "@/lib/shapes";
+import { DEFAULT_COLORS } from "@/lib/shapes";
 
 export default function QuestionBuilder({
   question,
@@ -83,6 +82,13 @@ export default function QuestionBuilder({
           >
             Choix multiple
           </button>
+          <button
+            type="button"
+            aria-pressed={question.type === "free"}
+            onClick={() => setType("free")}
+          >
+            Réponse libre
+          </button>
         </div>
         <div className="spacer" />
         {canRemove && (
@@ -105,16 +111,28 @@ export default function QuestionBuilder({
         maxLength={500}
       />
 
-      <div className="stack gap-8">
+      {question.type === "free" ? (
+        <div>
+          <label className="label" htmlFor={`ref-${question.id}`}>
+            Réponse attendue (optionnel — visible par vous seul)
+          </label>
+          <input
+            id={`ref-${question.id}`}
+            className="input"
+            placeholder="ex. Antananarivo"
+            value={question.reference || ""}
+            onChange={(e) => patch({ reference: e.target.value })}
+            maxLength={240}
+          />
+          <p className="tiny muted" style={{ marginTop: 6 }}>
+            Les participants saisissent leur réponse au clavier. Vous validerez
+            chaque réponse manuellement après le chrono.
+          </p>
+        </div>
+      ) : (
+        <div className="stack gap-8">
         {question.answers.map((a, i) => (
           <div className="ans-edit" key={a.id}>
-            <span
-              className="answer-tile__glyph"
-              style={{ background: a.color, color: "#161228", width: 34, height: 34 }}
-              title="Forme de la réponse"
-            >
-              <Shape kind={shapeForIndex(i)} size={14} />
-            </span>
             <input
               type="color"
               className="color-dot"
@@ -153,10 +171,11 @@ export default function QuestionBuilder({
             )}
           </div>
         ))}
-      </div>
+        </div>
+      )}
 
       <div className="row gap-12 wrap">
-        {question.answers.length < 6 && (
+        {question.type !== "free" && question.answers.length < 6 && (
           <button type="button" className="btn btn--ghost" onClick={addAnswer}>
             + Réponse
           </button>

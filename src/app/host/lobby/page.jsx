@@ -21,7 +21,10 @@ function LobbyInner() {
 
   // Si la partie est déjà lancée, on file vers le suivi des résultats.
   useEffect(() => {
-    if (state && (state.status === "running" || state.status === "ended")) {
+    if (
+      state &&
+      ["running", "review", "ended"].includes(state.status)
+    ) {
       router.replace(`/host/results?code=${code}`);
     }
   }, [state, code, router]);
