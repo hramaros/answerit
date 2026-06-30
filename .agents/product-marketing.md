@@ -1,0 +1,121 @@
+# Product Marketing Context — valio.fanontaniana
+
+*Dernière mise à jour : 2026-06-30*
+*Statut : V1 auto-rédigée à partir du code. Les `[À CONFIRMER]` attendent ta validation.*
+
+## Product Overview
+**One-liner :** Le quiz en direct façon Kahoot — mais qui produit une **vraie note /20** et accepte les **réponses libres** corrigées par le formateur.
+**What it does :** Application web où un formateur lance un quiz en direct. Les participants rejoignent une salle avec un **code** + un **pseudo**, sans aucune inscription, et répondent à leur rythme sous un chrono global unique. Chaque session donne à la fois un **score de jeu** (justesse + rapidité, style Kahoot) et une **note /20** académique. Les questions à **réponse libre** sont validées manuellement par le formateur avant publication du classement, exportable en **PDF**.
+**Product category :** Outil de quiz live & d'évaluation formative pour formateurs (live quiz + assessment).
+**Product type :** SaaS web, 100 % serverless (Next.js + Upstash Redis, déployé sur Vercel). Sessions éphémères (salles à TTL, pas de compte).
+**Business model :** **Freemium + pay-as-you-go (crédits), sans abonnement.**
+- **Gratuit, sans compte** : quiz QCM (choix simple/multiple) en live, score + note /20 + classement à l'écran, **éphémère** (sans export ni persistance).
+- **Pro, sur compte + crédits** : réponse libre, export PDF, persistance, logs d'examens, salles de classe, dashboard analytique.
+- **PAYG** : recharge d'un **porte-monnaie en Ariary** (**top-up min 5 $ ≈ 22 500 Ar**) ; lancer un examen pro débite le solde. Les examens gratuits ne consomment rien.
+- **Prix par examen pro (selon la taille)** : **1 000 Ar (~0,22 $)** jusqu'à **20 participants** ; **2 000 Ar (~0,45 $)** pour un **nombre illimité** de participants.
+- **Paiement** : mobile money (MVola / Orange Money / Airtel Money) **+** carte (Stripe / PayPal). Affichage **bi-devise** (MGA / USD selon la localisation).
+- Levier de coût : infra quasi gratuite (serverless + Redis) → prix accessible.
+- Détail complet : voir le plan business model dans `~/.claude/plans/unified-gliding-sketch.md`.
+
+## Target Audience
+**Target companies :** **Cœur de cible : formateurs & enseignants indépendants** (utilisateur = décideur = payeur). Cibles secondaires : centres/instituts de formation, écoles & universités, équipes formation/RH. **Marché francophone, Madagascar d'abord** (interface FR, nom malgache *fanontaniana* = « question », *valio* = « réponds »). Extension Afrique francophone possible.
+**Decision-makers :**
+- Formateur / enseignant (utilisateur **et** décideur en indépendant).
+- Responsable pédagogique / direction d'établissement (achat multi-classes).
+- Responsable formation / RH (usage entreprise).
+**Primary use case :** Animer une séance de révision ou d'évaluation interactive **et** en sortir une note exploitable, sans ressaisie.
+**Jobs to be done :**
+- Engager / capter l'attention des apprenants (côté ludique).
+- Évaluer et **noter** réellement (côté académique : /20, réponses libres).
+- Garder une trace partageable des résultats (export PDF).
+**Use cases :**
+- Révision de chapitre en classe.
+- Évaluation formative / examen blanc ludique.
+- Quiz d'accueil / icebreaker en formation pro.
+- Contrôle de connaissances avec questions ouvertes (réponses libres).
+
+## Personas
+| Persona | Cares about | Challenge | Value we promise |
+|---------|-------------|-----------|------------------|
+| Formateur / enseignant (User + Champion) | Engagement de la classe, gain de temps de correction, note fiable | Outils ludiques sans note exploitable / outils d'éval pas engageants | Une seule session = jeu **+** note /20 **+** PDF |
+| Responsable pédagogique (Decision Maker) | Adoption simple, cohérence des évaluations | Déployer un outil sans friction ni formation | Aucune inscription, prise en main immédiate |
+| Direction / RH (Financial Buyer) | Coût, ROI, image moderne | Budget outils numériques limité | Prix accessible, infra légère, `[À CONFIRMER offre établissement]` |
+
+## Problems & Pain Points
+**Core problem :** Les quiz live existants **engagent mais ne notent pas** vraiment (pas de /20, QCM uniquement) ; les outils d'évaluation classiques **notent mais n'engagent pas** ; et beaucoup sont chers ou pensés pour un contexte anglophone/US.
+**Why alternatives fall short :**
+- Pas de **note académique /20** exploitable directement.
+- Pas de **réponse libre** corrigée (QCM only) → impossible d'évaluer une vraie rédaction courte.
+- Freemium limité / tarifs élevés `[À CONFIRMER vs budget local]`.
+- Pensés EN/US, lourds (comptes obligatoires, gros front).
+**What it costs them :** Temps de correction manuelle, **double saisie** (quiz puis bulletin), désengagement des apprenants, friction d'inscription.
+**Emotional tension :** Charge de correction, crainte de la triche, frustration d'outils inadaptés au terrain (connexion, budget, langue).
+
+## Competitive Landscape
+**Direct :** Kahoot!, Quizizz, Wooclap, Socrative, Mentimeter — engageants mais `[À CONFIRMER]` pas de note /20 native, réponses ouvertes limitées, tarifs/■freemium contraignants, inscription requise.
+**Secondary :** Google Forms / Microsoft Forms — évaluent en asynchrone mais **aucun live**, aucune dimension ludique/temps réel.
+**Indirect :** QCM papier + correction manuelle, lever de mains / ardoises — gratuit et habituel, mais chronophage et sans données.
+*(Préciser, pour chacun, en quoi il échoue spécifiquement pour TES clients — à affiner avec des retours terrain.)*
+
+## Differentiation
+**Key differentiators :**
+- **Score de jeu + note /20** dans une seule session (ludique **et** académique).
+- **Réponses libres** avec **validation manuelle** par le formateur (au-delà du QCM).
+- **Export PDF** (classement formateur + résultat individuel).
+- **Zéro inscription** participant (code + pseudo), **ultra léger** (polling, serverless, salles éphémères) → adapté aux connexions limitées et au RGPD/données minimales.
+- Interface **française** et identité **locale**.
+**How we do it differently :** Une fin de session en deux temps quand il y a des réponses libres — chrono → **phase de correction** par le formateur → publication des notes et du classement.
+**Why that's better :** Plus de double saisie ni de correction déconnectée du jeu ; l'évaluation sort prête à l'emploi.
+**Why customers choose us :** `[À CONFIRMER avec verbatims clients]` Hypothèse : « le seul quiz live qui me donne directement une note exploitable, sans inscrire mes élèves ».
+
+## Objections
+| Objection | Response |
+|-----------|----------|
+| « Encore un outil payant ? » | Le **QCM live complet est gratuit à vie, sans compte** ; on ne paie qu'à l'usage (sans abonnement) pour les fonctions pro (réponse libre, persistance, export, analytics) |
+| « La connexion en salle est instable » | Polling léger, pas de WebSocket, faible bande passante ; chacun répond à son rythme |
+| « On peut tricher sur les réponses libres » | Le formateur **valide chaque réponse manuellement** avant publication |
+| « Pas de compte = pas de suivi dans le temps » | Éphémère **par design** ; export PDF pour archiver. `[Suivi historique = évolution future ?]` |
+
+**Anti-persona :** Établissement qui veut une **LMS complète** (banque de questions partagée, suivi longitudinal, SSO entreprise, intégrations notes officielles). valio est volontairement léger et éphémère — pas un LMS.
+
+## Switching Dynamics
+**Push :** Correction chronophage, double saisie quiz→bulletin, apprenants passifs avec les outils classiques.
+**Pull :** Jeu **+** note /20 **+** PDF en une session ; aucune inscription ; gratuit/léger.
+**Habit :** Kahoot/Quizizz déjà installés dans les habitudes ; QCM papier.
+**Anxiety :** Fiabilité en salle, courbe d'apprentissage, prix, « est-ce sérieux/durable ? ».
+
+## Customer Language
+**How they describe the problem :** `[À COLLECTER — verbatims réels de formateurs]`
+- ex. « Kahoot c'est fun mais après je dois quand même tout renoter à la main. »
+**How they describe us :** `[À COLLECTER]`
+- ex. « le quiz qui donne direct la note. »
+**Words to use :** quiz en direct, note /20, réponse libre, sans inscription, formateur, salle, code, classement.
+**Words to avoid :** « LMS », « plateforme e-learning complète », jargon technique (serverless, Redis…) côté client.
+**Glossary :**
+| Terme | Sens |
+|------|---------|
+| fanontaniana | « question » (malgache) — l'identité du produit |
+| valio | « réponds » (malgache) |
+| réponse libre | question ouverte saisie au clavier, corrigée manuellement |
+| note /20 | note académique = bonnes réponses / total ×20 |
+
+## Brand Voice
+**Tone :** Chaleureux, encourageant, énergique mais sérieux sur l'évaluation. (UI actuelle en **vouvoiement**.)
+**Style :** Direct, simple, concret, francophone, sans jargon.
+**Personality :** Ludique · Accessible · Fiable · Local · Malin.
+
+## Proof Points
+**Metrics :** `[À COMPLÉTER — produit récent, à mesurer : nb de quiz lancés, participants/session, taux de complétion]`
+**Customers :** `[À COMPLÉTER — premiers formateurs / établissements pilotes]`
+**Testimonials :** `[À COLLECTER]`
+**Value themes :**
+| Theme | Proof |
+|-------|-------|
+| Jeu + note en une session | Score Kahoot **et** note /20 + export PDF |
+| Évaluer l'ouvert, pas que le QCM | Réponses libres validées manuellement |
+| Zéro friction | Code + pseudo, aucune inscription |
+
+## Goals
+**Business goal :** Acquérir une base de formateurs actifs sur le gratuit, puis les convertir au **pro PAYG** (1ʳᵉ recharge de crédits).
+**Conversion action :** Macro : **recharger des crédits et lancer un 1ᵉʳ examen pro**. Activation amont : créer et lancer un quiz gratuit. Action participant : rejoindre une salle.
+**Current metrics :** `[À COMPLÉTER — produit récent]`
