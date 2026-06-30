@@ -9,9 +9,10 @@
 **Product category :** Outil de quiz live & d'évaluation formative pour formateurs (live quiz + assessment).
 **Product type :** SaaS web, 100 % serverless (Next.js + Upstash Redis, déployé sur Vercel). Sessions éphémères (salles à TTL, pas de compte).
 **Business model :** **Freemium + pay-as-you-go (crédits), sans abonnement.**
-- **Gratuit, sans compte** : quiz QCM (choix simple/multiple) en live, score + note /20 + classement à l'écran, **éphémère** (sans export ni persistance).
+- **Gratuit, sans compte** : quiz QCM (choix simple/multiple) en live, score + note /20 + classement à l'écran, **éphémère** (sans export ni persistance), **limité à 10 participants par salle**.
 - **Pro, sur compte + crédits** : réponse libre, export PDF, persistance, logs d'examens, salles de classe, dashboard analytique.
-- **PAYG** : recharge d'un **porte-monnaie en Ariary** (**top-up min 5 $ ≈ 22 500 Ar**) ; lancer un examen pro débite le solde. Les examens gratuits ne consomment rien.
+- **Mode au choix à la création** : **Libre** (gratuit, sans compte, **≤ 10 participants**) ou **Examen** (pro). Le mode Examen débloque la réponse libre, fixe la **capacité** via un toggle (≤ 20 / illimité), et son **solde est débité en fin de session** (fin du chrono ou bouton « Terminer l'examen »). Le mode Libre ne consomme rien.
+- **PAYG** : recharge d'un **porte-monnaie en Ariary** (**top-up min 5 $ ≈ 22 500 Ar**).
 - **Prix par examen pro (selon la taille)** : **1 000 Ar (~0,22 $)** jusqu'à **20 participants** ; **2 000 Ar (~0,45 $)** pour un **nombre illimité** de participants.
 - **Paiement** : mobile money (MVola / Orange Money / Airtel Money) **+** carte (Stripe / PayPal). Affichage **bi-devise** (MGA / USD selon la localisation).
 - Levier de coût : infra quasi gratuite (serverless + Redis) → prix accessible.
