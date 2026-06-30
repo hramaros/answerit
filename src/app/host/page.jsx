@@ -104,7 +104,10 @@ export default function HostPage() {
           <div className="row row--between">
             <Link href="/" className="pill">← Accueil</Link>
             {account && (
-              <Link href="/host/history" className="pill">Mes examens</Link>
+              <span className="row gap-8">
+                <Link href="/host/dashboard" className="pill">Tableau de bord</Link>
+                <Link href="/host/history" className="pill">Mes examens</Link>
+              </span>
             )}
           </div>
           <form className="card stack gap-16" onSubmit={createRoom}>

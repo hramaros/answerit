@@ -18,6 +18,8 @@ function summarize(r) {
     charged: r.charged,
     participantCount: r.participantCount,
     nbQuestions: r.nbQuestions,
+    avgNote: r.avgNote,
+    avgScore: r.avgScore,
   };
 }
 
