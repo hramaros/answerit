@@ -1,7 +1,7 @@
 "use client";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import Brand from "@/components/Brand";
 import { apiGet, apiPost } from "@/lib/api";
 import { normalizeCode } from "@/lib/code";
 import { usePolling } from "@/lib/usePolling";
@@ -52,10 +52,7 @@ function LobbyInner() {
   return (
     <div className="container stack gap-24">
       <div className="row row--between wrap gap-12">
-        <Link href="/" className="brand">
-          <img src="/logo.png" alt="valio" className="brand__logo" />
-          <b>.fanontaniana</b>
-        </Link>
+        <Brand />
         <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
           <span className="tiny muted">Code</span>
           <span className="code-chip">{code}</span>

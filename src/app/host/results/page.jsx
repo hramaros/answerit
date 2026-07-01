@@ -2,6 +2,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Brand from "@/components/Brand";
 import Countdown from "@/components/Countdown";
 import Leaderboard from "@/components/Leaderboard";
 import Podium from "@/components/Podium";
@@ -91,10 +92,7 @@ function HostResultsInner() {
 
   const header = (
     <div className="row row--between wrap gap-12">
-      <Link href="/" className="brand">
-        <img src="/logo.png" alt="valio" className="brand__logo" />
-        <b>.fanontaniana</b>
-      </Link>
+      <Brand />
       <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
         <span className="tiny muted">Code</span>
         <span className="code-chip">{code}</span>

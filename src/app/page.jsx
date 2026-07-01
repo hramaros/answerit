@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Brand from "@/components/Brand";
 import { apiPost } from "@/lib/api";
 import { normalizeCode } from "@/lib/code";
 
@@ -33,10 +34,7 @@ export default function HomePage() {
     <div className="center-screen">
       <div className="container container--narrow stack gap-24">
         <div className="row row--between">
-          <span className="brand">
-            <img src="/logo.png" alt="valio" className="brand__logo" />
-            <b>.fanontaniana</b>
-          </span>
+          <Brand as="span" />
         </div>
 
         <div className="hero stack gap-16">

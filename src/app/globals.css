@@ -507,6 +507,25 @@ button {
   .modal { animation: none; }
 }
 
+/* ---------- Onboarding (visite guidée) ---------- */
+.onb-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.onb-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  transition: background 0.2s, width 0.2s;
+}
+.onb-dot--on {
+  background: var(--accent);
+  width: 22px;
+  border-radius: 4px;
+}
+
 /* ---------- Carnet de notes ---------- */
 .gradebook {
   border-collapse: collapse;

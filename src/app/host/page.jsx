@@ -9,6 +9,7 @@ import { DEFAULT_COLORS } from "@/lib/shapes";
 import { saveHostSession } from "@/lib/session";
 import { useAccount } from "@/lib/account-client";
 import AuthModal from "@/components/AuthModal";
+import Brand from "@/components/Brand";
 
 function newQuestion() {
   return {
@@ -55,6 +56,14 @@ export default function HostPage() {
       if (ok) setClasses(data.classes);
     });
   }, [account]);
+
+  // Visite guidée au premier accès d'un formateur connecté (non onboardé).
+  useEffect(() => {
+    if (!account) return;
+    try {
+      if (!localStorage.getItem("valio:onboarded")) router.replace("/host/welcome");
+    } catch {}
+  }, [account, router]);
 
   async function createRoom(e) {
     e.preventDefault();
@@ -130,6 +139,13 @@ export default function HostPage() {
                 <li>Au lancement, rechargez votre solde (actuellement 0 Ar).</li>
                 <li>Lancez, corrigez, publiez — notes et historique sauvegardés.</li>
               </ol>
+              <Link
+                href="/host/welcome"
+                className="btn btn--ghost"
+                style={{ alignSelf: "flex-start" }}
+              >
+                ▶ Visite guidée (30 s)
+              </Link>
               <Link
                 href="/host/classes"
                 className="tiny"
@@ -295,10 +311,7 @@ export default function HostPage() {
   return (
     <div className="container stack gap-24">
       <div className="row row--between wrap gap-12">
-        <span className="brand">
-          <img src="/logo.png" alt="valio" className="brand__logo" />
-          <b>.fanontaniana</b>
-        </span>
+        <Brand as="span" />
         <div className="panel row gap-12" style={{ padding: "10px 16px" }}>
           <span className="tiny muted">Code à partager</span>
           <span className="code-chip">{code}</span>

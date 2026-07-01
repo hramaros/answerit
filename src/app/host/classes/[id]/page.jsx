@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import Brand from "@/components/Brand";
 import { useParams } from "next/navigation";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import { useAccount } from "@/lib/account-client";
@@ -79,10 +80,7 @@ export default function ClassDetailPage() {
   return (
     <div className="container stack gap-24">
       <div className="row row--between wrap gap-12">
-        <Link href="/" className="brand">
-          <img src="/logo.png" alt="valio" className="brand__logo" />
-          <b>.fanontaniana</b>
-        </Link>
+        <Brand />
         <Link href="/host/classes" className="pill">← Mes classes</Link>
       </div>
 
